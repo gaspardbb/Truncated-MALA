@@ -101,6 +101,26 @@ def example_prod_gauss(N):
     plt.show()
 
 
+def compare_models(models):
+    plt.figure(figsize=(8, 8))
+    i = 1
+    n = len(models.keys())
+    for name, model in models.items():
+        plt.subplot((n + 1) // 2, 2, i)
+        model.plot_acceptance_rates()
+        plt.legend()
+        plt.title(name)
+        i += 1
+
+    i = 1
+    plt.figure(figsize=(8, 8))
+    for name, model in models.items():
+        plt.subplot((n + 1) // 2, 2, i)
+        model.plot_autocorr(dim=1, label=name)
+        plt.legend()
+        i += 1
+    plt.show()
+
 def example_20D(N):
     # load covariance matrix
     import urllib.request
@@ -111,7 +131,7 @@ def example_20D(N):
         Sigma.append(list(map(float, str.split(str(line)[2:-5]))))
     Sigma = np.array(Sigma)
 
-    Sigma = np.eye(3) # to test with a vanilla covariance matrix
+    Sigma = np.eye(3)  # to test with a vanilla covariance matrix
     dim = Sigma.shape[0]
 
     initial_state = np.zeros(dim)
@@ -152,45 +172,14 @@ def example_20D(N):
         rw_model.sample()
         t_rw_model.sample()
 
-    plt.figure(figsize=(8, 8))
-    plt.subplot(2, 2, 1)
-    mala_model.plot_acceptance_rates()
-    plt.legend()
-    plt.title('MALA')
-    plt.subplot(2, 2, 2)
-    rw_model.plot_acceptance_rates()
-    plt.legend()
-    plt.title('SRW')
-    plt.subplot(2, 2, 3)
-    t_mala_model.plot_acceptance_rates()
-    plt.legend()
-    plt.title('T-MALA')
-    plt.subplot(2, 2, 4)
-    t_rw_model.plot_acceptance_rates()
-    plt.legend()
-    plt.title('T-SRW')
+    models = {'MALA': mala_model,
+              'T-MALA': t_mala_model,
+              'SRW': rw_model,
+              'T-SRW': t_rw_model}
 
-    plt.figure(figsize=(8, 4))
-    t_mala_model.plot_autocorr(dim=1, color='r', alpha=0.5, label='T-MALA')
-    rw_model.plot_autocorr(dim=1, color='b', alpha=0.5, label='SRW')
-    plt.legend()
-
-    plt.figure(figsize=(8, 8))
-    plt.subplot(2, 2, 1)
-    mala_model.plot_autocorr(dim=1, label='MALA')
-    plt.legend()
-    plt.subplot(2, 2, 2)
-    rw_model.plot_autocorr(dim=1, label='SRW')
-    plt.legend()
-    plt.subplot(2, 2, 3)
-    t_mala_model.plot_autocorr(dim=1, label='T-MALA')
-    plt.legend()
-    plt.subplot(2, 2, 4)
-    t_rw_model.plot_autocorr(dim=1, label='T-SRW')
-    plt.legend()
-    plt.show()
+    compare_models(models)
 
 
 if __name__ == '__main__':
     # example_prod_gauss(200)
-    example_20D(20000)
+    example_20D(2000)

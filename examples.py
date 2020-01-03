@@ -121,22 +121,13 @@ def compare_models(models):
         i += 1
     plt.show()
 
-def example_20D(N):
-    # load covariance matrix
-    import urllib.request
-    target_url = "http://dept.stat.lsa.umich.edu/~yvesa/tmalaexcov.txt"
-    data = urllib.request.urlopen(target_url)
-    Sigma = []
-    for line in data:
-        Sigma.append(list(map(float, str.split(str(line)[2:-5]))))
-    Sigma = np.array(Sigma)
 
-    Sigma = np.eye(3)  # to test with a vanilla covariance matrix
+def example_gaussian(mu, Sigma, N):
     dim = Sigma.shape[0]
 
     initial_state = np.zeros(dim)
 
-    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([np.zeros(dim)]),
+    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([mu]),
                                                                           sigmas=np.array([Sigma]))
 
     # Parameter of the model
@@ -166,6 +157,7 @@ def example_20D(N):
                                      mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0
                                      )
 
+
     for i in range(N):
         mala_model.sample()
         t_mala_model.sample()
@@ -180,6 +172,24 @@ def example_20D(N):
     compare_models(models)
 
 
+def example_20D(N):
+    # load covariance matrix
+    import urllib.request
+    target_url = "http://dept.stat.lsa.umich.edu/~yvesa/tmalaexcov.txt"
+    data = urllib.request.urlopen(target_url)
+    Sigma = []
+    for line in data:
+        Sigma.append(list(map(float, str.split(str(line)[2:-5]))))
+    Sigma = np.array(Sigma)
+    dim = Sigma.shape[0]
+    example_gaussian(np.zeros(dim), Sigma, N)
+
+
+def example_vanilla_gauss(dim, N):
+    example_gaussian(np.zeros(dim), np.eye(dim), N)
+
+
 if __name__ == '__main__':
     # example_prod_gauss(200)
-    example_20D(2000)
+    # example_20D(20000)
+    example_vanilla_gauss(dim=2, N=10000)

@@ -159,7 +159,9 @@ class HastingMetropolis:
         A float between 0 and 1.
         """
         if log and self.log_pi is not None:
-            arg_exp = self.log_pi(proposal) - self.log_pi(self.state) + self.log_proposal_value(proposal, self.state) - self.log_proposal_value(self.state, proposal)
+            arg_exp = self.log_pi(proposal) - self.log_pi(self.state) + self.log_proposal_value(proposal,
+                                                                                                self.state) - self.log_proposal_value(
+                self.state, proposal)
             alpha = np.exp(min(0, arg_exp))
         else:
             numerator = self.pi(proposal) * self.proposal_value(proposal, self.state)
@@ -170,7 +172,8 @@ class HastingMetropolis:
             assert numerator >= 0 and denominator >= 0 or np.isnan(numerator), \
                 "Numerator and denominator should be non-negative, got {} / {} at step {}.".format(
                     numerator, denominator, self.steps)
-        assert 0 <= alpha <= 1, "Problem with the acceptance ratio. Expected a value between 0 and 1, got {}".format(alpha)
+        assert 0 <= alpha <= 1, "Problem with the acceptance ratio. Expected a value between 0 and 1, got {}".format(
+            alpha)
         return alpha
 
     def plot_acceptance_rates(self, offset=0):
@@ -360,7 +363,7 @@ class AdaptiveMALA(HastingMetropolis):
 
 class SymmetricRW(HastingMetropolis):
 
-    def __init__(self, state, pi, log_pi, scale):
+    def __init__(self, state, pi, log_pi, covariance):
         """
         A symmetric random walk HM sampler.
 
@@ -369,17 +372,17 @@ class SymmetricRW(HastingMetropolis):
         state: initial state.
         pi: distribution we want to approximate.
         log_pi: log of the distribution we want to approximate
-        scale: scale parameter for the proposal distribution.
+        covariance: scale parameter for the proposal distribution.
         """
         super(SymmetricRW, self).__init__(state, pi, log_pi)
-        self.scale = scale
+        self.covariance = covariance
 
     def proposal_sampler(self) -> np.ndarray:
-        sample = np.random.multivariate_normal(mean=self.state, cov=self.scale)
+        sample = np.random.multivariate_normal(mean=self.state, cov=self.covariance)
         return sample
 
     def proposal_value(self, x, y):
-        return normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.scale)
+        return normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.covariance)
 
     def log_proposal_value(self, x, y):
-        return log_normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.scale)
+        return log_normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.covariance)

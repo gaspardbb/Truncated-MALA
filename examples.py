@@ -80,7 +80,7 @@ def example_prod_gauss(N):
                                 epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
                                 mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, scale=gamma_0)
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, covariance=gamma_0)
 
     for i in range(N):
         t_mala_model.sample()
@@ -114,7 +114,8 @@ def example_20D(N):
 
     initial_state = np.zeros(dim)
 
-    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([np.zeros(dim)]), sigmas=np.array([Sigma]))
+    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([np.zeros(dim)]),
+                                                                          sigmas=np.array([Sigma]))
 
     # Parameter of the model
     delta = 100
@@ -132,7 +133,7 @@ def example_20D(N):
                                 epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
                                 mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, scale=gamma_0)
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, covariance=gamma_0)
 
     for i in range(N):
         t_mala_model.sample()

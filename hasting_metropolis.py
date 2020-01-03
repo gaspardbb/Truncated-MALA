@@ -153,15 +153,16 @@ class HastingMetropolis:
         ----------
         proposal
             The proposal value, given by e.g. proposal_sampler()
+        log
+            Computing acceptance_ratio using log trick
 
         Returns
         -------
         A float between 0 and 1.
         """
         if log and self.log_pi is not None:
-            arg_exp = self.log_pi(proposal) - self.log_pi(self.state) + self.log_proposal_value(proposal,
-                                                                                                self.state) - self.log_proposal_value(
-                self.state, proposal)
+            arg_exp = self.log_pi(proposal) - self.log_pi(self.state) \
+                      + self.log_proposal_value(proposal, self.state) - self.log_proposal_value(self.state, proposal)
             alpha = np.exp(min(0, arg_exp))
         else:
             numerator = self.pi(proposal) * self.proposal_value(proposal, self.state)
@@ -275,9 +276,8 @@ class MALA(HastingMetropolis):
     def __init__(self, state, pi, log_pi,
                  drift: Callable[[np.ndarray], np.ndarray],
                  tau_bar: float,
-                 mu_0: np.ndarray,
                  gamma_0: np.ndarray,
-                 sigma_0: np.ndarray,
+                 sigma_0: float,
                  epsilon_2: float = 0,
                  ):
         """
@@ -290,14 +290,13 @@ class MALA(HastingMetropolis):
         log_pi: log of the distribution we want to approximate
         drift: Callable.
         tau_bar: optimal acceptation rate.
-        mu_0, gamma_0, sigma_0: initial values for the parameters.
+        gamma_0, sigma_0: initial values for the parameters.
         epsilon_2: parameters of the HM algorithm. Must verify: 0 < epsilon_2.
         """
         super(MALA, self).__init__(state, pi, log_pi)
 
         self.drift = drift
         self.tau_bar = tau_bar
-        self.mu = mu_0
         self.gamma = gamma_0
         self.sigma = sigma_0
         self.epsilon_2 = epsilon_2
@@ -341,7 +340,7 @@ class AdaptiveMALA(MALA):
                  tau_bar: float,
                  mu_0: np.ndarray,
                  gamma_0: np.ndarray,
-                 sigma_0: np.ndarray,
+                 sigma_0: float,
                  robbins_monroe=10
                  ):
         """
@@ -363,11 +362,12 @@ class AdaptiveMALA(MALA):
         [1] An adaptive version for the Metropolis adjusted Langevin algorithm with a truncated drift, Yves F. Atchadé
 
         """
-        super(AdaptiveMALA, self).__init__(state, pi, log_pi, drift, tau_bar, mu_0, gamma_0, sigma_0, epsilon_2)
+        super(AdaptiveMALA, self).__init__(state, pi, log_pi, drift, tau_bar, gamma_0, sigma_0, epsilon_2)
         _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu_0, gamma_0)
 
         self.epsilon_1 = epsilon_1
         self.A_1 = A_1
+        self.mu = mu_0
         self.c_0 = robbins_monroe
         self.proj_sigma, self.proj_gamma, self.proj_mu = projection_operators(epsilon_1, A_1)
 
@@ -388,9 +388,9 @@ class AdaptiveMALA(MALA):
         self.params_history['sigma'].append(self.sigma)
 
 
-class SymmetricRW(HastingMetropolis):
+class SymmetricRW(MALA):
 
-    def __init__(self, state, pi, log_pi, covariance):
+    def __init__(self, state, pi, log_pi, gamma_0, sigma_0=1, epsilon_2=0):
         """
         A symmetric random walk HM sampler.
 
@@ -399,17 +399,64 @@ class SymmetricRW(HastingMetropolis):
         state: initial state.
         pi: distribution we want to approximate.
         log_pi: log of the distribution we want to approximate
-        covariance: scale parameter for the proposal distribution.
+        gamma_0: scale parameter for the proposal distribution.
         """
-        super(SymmetricRW, self).__init__(state, pi, log_pi)
-        self.covariance = covariance
+        super(SymmetricRW, self).__init__(state, pi, log_pi,
+                                          drift=lambda x: np.zeros(x.shape),
+                                          tau_bar=0.234,
+                                          gamma_0=gamma_0,
+                                          sigma_0=sigma_0,
+                                          epsilon_2=epsilon_2)
 
-    def proposal_sampler(self) -> np.ndarray:
-        sample = np.random.multivariate_normal(mean=self.state, cov=self.covariance)
-        return sample
 
-    def proposal_value(self, x, y):
-        return normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.covariance)
+class AdaptiveSymmetricRW(SymmetricRW):
 
-    def log_proposal_value(self, x, y):
-        return log_normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.covariance)
+    def __init__(self, state, pi, log_pi,
+                 epsilon_1: float,
+                 epsilon_2: float,
+                 A_1: float,
+                 tau_bar: float,
+                 mu_0: np.ndarray,
+                 gamma_0: np.ndarray,
+                 sigma_0: float,
+                 robbins_monroe=10
+                 ):
+        """
+        An Adaptive symmetric random walk HM sampler.
+
+        Parameters
+        ----------
+        state: initial state.
+        pi: distribution we want to approximate.
+        log_pi: log of the distribution we want to approximate
+        gamma_0: scale parameter for the proposal distribution.
+        """
+        super(AdaptiveSymmetricRW, self).__init__(state, pi, log_pi,
+                                                  gamma_0=gamma_0,
+                                                  sigma_0=sigma_0,
+                                                  epsilon_2=epsilon_2
+                                                  )
+
+        _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu_0, gamma_0)
+
+        self.epsilon_1 = epsilon_1
+        self.A_1 = A_1
+        self.mu = mu_0
+        self.c_0 = robbins_monroe
+        self.proj_sigma, self.proj_gamma, self.proj_mu = projection_operators(epsilon_1, A_1)
+
+        self.params_history = {'mu': [mu_0.copy()],
+                               'gamma': [gamma_0.copy()],
+                               'sigma': [sigma_0]}
+
+    def update_params(self, alpha):
+        coeff = self.c_0 / self.steps
+        covariance = (self.state - self.mu)[:, np.newaxis] @ (self.state - self.mu)[np.newaxis, :]
+
+        self.mu = self.proj_mu(self.mu + coeff * (self.state - self.mu))
+        self.gamma = self.proj_gamma(self.gamma + coeff * (covariance - self.gamma))
+        self.sigma = self.proj_sigma(self.sigma + coeff * (alpha - self.tau_bar))
+
+        self.params_history['mu'].append(self.mu.copy())
+        self.params_history['gamma'].append(self.gamma.copy())
+        self.params_history['sigma'].append(self.sigma)

@@ -1,5 +1,6 @@
 import numpy as np
-from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW, normal_pdf_unn, log_normal_pdf_unn
+from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW, normal_pdf_unn, log_normal_pdf_unn, MALA, \
+    AdaptiveSymmetricRW
 import matplotlib.pyplot as plt
 
 
@@ -80,7 +81,7 @@ def example_prod_gauss(N):
                                 epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
                                 mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, covariance=gamma_0)
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=gamma_0)
 
     for i in range(N):
         t_mala_model.sample()
@@ -110,6 +111,7 @@ def example_20D(N):
         Sigma.append(list(map(float, str.split(str(line)[2:-5]))))
     Sigma = np.array(Sigma)
 
+    Sigma = np.eye(3) # to test with a vanilla covariance matrix
     dim = Sigma.shape[0]
 
     initial_state = np.zeros(dim)
@@ -129,30 +131,66 @@ def example_20D(N):
 
     drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
 
+    mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
+                      epsilon_2=epsilon_2, tau_bar=tau_bar,
+                      gamma_0=gamma_0, sigma_0=sigma_0)
+
     t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
                                 epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
                                 mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, covariance=gamma_0)
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=gamma_0)
+
+    t_rw_model = AdaptiveSymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf,
+                                     epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
+                                     mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0
+                                     )
 
     for i in range(N):
+        mala_model.sample()
         t_mala_model.sample()
         rw_model.sample()
+        t_rw_model.sample()
 
     plt.figure(figsize=(8, 8))
-    plt.subplot(2, 1, 1)
+    plt.subplot(2, 2, 1)
+    mala_model.plot_acceptance_rates()
+    plt.legend()
+    plt.title('MALA')
+    plt.subplot(2, 2, 2)
+    rw_model.plot_acceptance_rates()
+    plt.legend()
+    plt.title('SRW')
+    plt.subplot(2, 2, 3)
     t_mala_model.plot_acceptance_rates()
     plt.legend()
-    plt.subplot(2, 1, 2)
-    rw_model.plot_acceptance_rates()
+    plt.title('T-MALA')
+    plt.subplot(2, 2, 4)
+    t_rw_model.plot_acceptance_rates()
+    plt.legend()
+    plt.title('T-SRW')
 
     plt.figure(figsize=(8, 4))
     t_mala_model.plot_autocorr(dim=1, color='r', alpha=0.5, label='T-MALA')
     rw_model.plot_autocorr(dim=1, color='b', alpha=0.5, label='SRW')
     plt.legend()
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 2, 1)
+    mala_model.plot_autocorr(dim=1, label='MALA')
+    plt.legend()
+    plt.subplot(2, 2, 2)
+    rw_model.plot_autocorr(dim=1, label='SRW')
+    plt.legend()
+    plt.subplot(2, 2, 3)
+    t_mala_model.plot_autocorr(dim=1, label='T-MALA')
+    plt.legend()
+    plt.subplot(2, 2, 4)
+    t_rw_model.plot_autocorr(dim=1, label='T-SRW')
+    plt.legend()
     plt.show()
 
 
 if __name__ == '__main__':
-    example_prod_gauss(20000)
-    # example_20D(2000)
+    # example_prod_gauss(200)
+    example_20D(20000)

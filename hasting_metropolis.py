@@ -30,12 +30,36 @@ def normal_pdf_unn(x, mean, variance, inv_variance=None):
     return result
 
 
+def log_normal_pdf_unn(x, mean, variance, inv_variance=None):
+    """
+    log of unnormalized pdf of a normal distribution.
+
+    Parameters
+    ----------
+    x
+        Where to evaluate the Normal.
+    mean, variance:
+        parameters of the gaussian.
+    inv_variance
+        Inverse of the variance (to avoid computing it again and again in certain cases).
+
+    Returns
+    -------
+    Float: the result.
+    """
+    if inv_variance is None:
+        inv_variance = np.linalg.inv(variance)
+    return -1 / 2 * (x - mean).T[np.newaxis, :] @ inv_variance @ (x - mean)[:, np.newaxis]
+
+
 class HastingMetropolis:
 
-    def __init__(self, state: np.ndarray, pi: Callable[[np.ndarray], np.ndarray]):
+    def __init__(self, state: np.ndarray, pi: Callable[[np.ndarray], np.ndarray],
+                 log_pi: Callable[[np.ndarray], np.ndarray] = None):
         self.dims = state.shape[0]
         self.state = state
         self.pi = pi
+        self.log_pi = log_pi
         self.acceptance_rate = 0
         self.steps = 0
         self.history = {'state': [state], 'acceptance rate': []}
@@ -106,7 +130,22 @@ class HastingMetropolis:
         """
         raise NotImplementedError
 
-    def acceptance_ratio(self, proposal):
+    def log_proposal_value(self, x, y):
+        """
+        Given x and y, returns the log of the proposal q(x, y).
+
+        Parameters
+        ----------
+        x, y
+            Values in X.
+
+        Returns
+        -------
+        Float.
+        """
+        raise NotImplementedError
+
+    def acceptance_ratio(self, proposal, log=True):
         """
         Compute the alpha parameter for the proposal, given the state we are in (self.state).
 
@@ -119,15 +158,19 @@ class HastingMetropolis:
         -------
         A float between 0 and 1.
         """
-        numerator = self.pi(proposal) * self.proposal_value(proposal, self.state)
-        denominator = self.pi(self.state) * self.proposal_value(self.state, proposal)
-        alpha = 1 if denominator == 0 else min(1, numerator / denominator)
-        # Poor handling of overflow; best way would be to use log computation.
-        alpha = 0 if np.isnan(numerator) else alpha
-        assert numerator >= 0 and denominator >= 0 or np.isnan(numerator), \
-            "Numerator and denominator should be non-negative, got {} / {} at step {}.".format(
-                numerator, denominator, self.steps)
-        assert 0 <= alpha <= 1, f"Problem with the acceptance ratio. Expected a value between 0 and 1, got {alpha:.1e}."
+        if log and self.log_pi is not None:
+            arg_exp = self.log_pi(proposal) - self.log_pi(self.state) + self.log_proposal_value(proposal, self.state) - self.log_proposal_value(self.state, proposal)
+            alpha = np.exp(min(0, arg_exp))
+        else:
+            numerator = self.pi(proposal) * self.proposal_value(proposal, self.state)
+            denominator = self.pi(self.state) * self.proposal_value(self.state, proposal)
+            alpha = 1 if denominator == 0 else min(1, numerator / denominator)
+            # Poor handling of overflow; best way would be to use log computation.
+            # alpha = 0 if np.isnan(numerator) else alpha
+            assert numerator >= 0 and denominator >= 0 or np.isnan(numerator), \
+                "Numerator and denominator should be non-negative, got {} / {} at step {}.".format(
+                    numerator, denominator, self.steps)
+        assert 0 <= alpha <= 1, "Problem with the acceptance ratio. Expected a value between 0 and 1, got {}".format(alpha)
         return alpha
 
     def plot_acceptance_rates(self, offset=0):
@@ -226,7 +269,7 @@ def _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu: np.ndarray, gamma: np.
 
 class AdaptiveMALA(HastingMetropolis):
 
-    def __init__(self, state, pi,
+    def __init__(self, state, pi, log_pi,
                  drift: Callable[[np.ndarray], np.ndarray],
                  epsilon_1: float,
                  epsilon_2: float,
@@ -244,6 +287,7 @@ class AdaptiveMALA(HastingMetropolis):
         ----------
         state: initial state to start in.
         pi: Callable. Unnormalized pdf of the distribution we want to approximate.
+        log_pi: log of the distribution we want to approximate
         drift: Callable.
         epsilon_1, epsilon_2, A_1: parameters of the HM algorithm. Must verify: 0 < epsilon_1 < A_1, 0 < epsilon_2.
         tau_bar: target optimal acceptation rate.
@@ -255,7 +299,7 @@ class AdaptiveMALA(HastingMetropolis):
         [1] An adaptive version for the Metropolis adjusted Langevin algorithm with a truncated drift, Yves F. Atchadé
 
         """
-        super(AdaptiveMALA, self).__init__(state, pi)
+        super(AdaptiveMALA, self).__init__(state, pi, log_pi)
         _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu_0, gamma_0)
 
         self.drift = drift
@@ -300,6 +344,14 @@ class AdaptiveMALA(HastingMetropolis):
         value = normal_pdf_unn(y, mean, variance)
         return value
 
+    def log_proposal_value(self, x, y):
+        assert x.shape == y.shape == self.state.shape
+        big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
+        mean = x + self.sigma ** 2 / 2 * big_lambda @ self.drift(x)
+        variance = self.sigma ** 2 * big_lambda
+        value = log_normal_pdf_unn(y, mean, variance)
+        return value
+
     def plot_acceptance_rates(self, offset=0):
         super(AdaptiveMALA, self).plot_acceptance_rates(offset)
         plt.plot([offset - 1, self.steps + 1], [self.tau_bar, self.tau_bar], c='r', linestyle='--',
@@ -308,7 +360,7 @@ class AdaptiveMALA(HastingMetropolis):
 
 class SymmetricRW(HastingMetropolis):
 
-    def __init__(self, state, pi, scale):
+    def __init__(self, state, pi, log_pi, scale):
         """
         A symmetric random walk HM sampler.
 
@@ -316,9 +368,10 @@ class SymmetricRW(HastingMetropolis):
         ----------
         state: initial state.
         pi: distribution we want to approximate.
+        log_pi: log of the distribution we want to approximate
         scale: scale parameter for the proposal distribution.
         """
-        super(SymmetricRW, self).__init__(state, pi)
+        super(SymmetricRW, self).__init__(state, pi, log_pi)
         self.scale = scale
 
     def proposal_sampler(self) -> np.ndarray:
@@ -327,3 +380,6 @@ class SymmetricRW(HastingMetropolis):
 
     def proposal_value(self, x, y):
         return normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.scale)
+
+    def log_proposal_value(self, x, y):
+        return log_normal_pdf_unn(y, mean=np.zeros(self.dims), variance=self.scale)

@@ -1,5 +1,5 @@
 import numpy as np
-from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW, normal_pdf_unn
+from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW, normal_pdf_unn, log_normal_pdf_unn
 import matplotlib.pyplot as plt
 
 
@@ -24,13 +24,19 @@ def product_of_gaussian(mus: np.ndarray, sigmas: np.ndarray):
     assert mus.shape[0] == sigmas.shape[0] and mus.shape[1] == sigmas.shape[1] == sigmas.shape[2]
     n_gaussians = mus.shape[0]
     inv_sigmas = np.zeros_like(sigmas)
-    for i in range(n_gaussians):
-        inv_sigmas[i] = np.linalg.inv(sigmas[i])
+    for j in range(n_gaussians):
+        inv_sigmas[j] = np.linalg.inv(sigmas[j])
 
     def pdf(x):
         result = 1
         for i in range(n_gaussians):
             result *= normal_pdf_unn(x, mus[i], sigmas[i], inv_variance=inv_sigmas[i])
+        return result
+
+    def log_pdf(x):
+        result = 0
+        for i in range(n_gaussians):
+            result += log_normal_pdf_unn(x, mus[i], sigmas[i], inv_variance=inv_sigmas[i])
         return result
 
     def grad_log_pdf(x):
@@ -39,7 +45,7 @@ def product_of_gaussian(mus: np.ndarray, sigmas: np.ndarray):
             result += inv_sigmas[i] @ (x - mus[i])
         return result
 
-    return pdf, grad_log_pdf
+    return pdf, log_pdf, grad_log_pdf
 
 
 def example_prod_gauss(N):
@@ -56,7 +62,7 @@ def example_prod_gauss(N):
     initial_state = np.zeros(2) + .5
 
     # Target functions
-    target_pdf, target_grad_log_pdf = product_of_gaussian(mus=target_mus, sigmas=target_sigmas)
+    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=target_mus, sigmas=target_sigmas)
 
     # Parameter of the model
     delta = 100
@@ -70,11 +76,11 @@ def example_prod_gauss(N):
 
     drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
 
-    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, drift=drift,
+    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
                                 epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
                                 mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, scale=gamma_0)
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, scale=gamma_0)
 
     for i in range(N):
         t_mala_model.sample()
@@ -108,7 +114,7 @@ def example_20D(N):
 
     initial_state = np.zeros(dim)
 
-    target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([np.zeros(dim)]), sigmas=np.array([Sigma]))
+    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([np.zeros(dim)]), sigmas=np.array([Sigma]))
 
     # Parameter of the model
     delta = 100
@@ -122,11 +128,11 @@ def example_20D(N):
 
     drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
 
-    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, drift=drift,
+    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
                                 epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
                                 mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, scale=gamma_0)
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, scale=gamma_0)
 
     for i in range(N):
         t_mala_model.sample()
@@ -147,5 +153,5 @@ def example_20D(N):
 
 
 if __name__ == '__main__':
-    # example_prod_gauss(20000)
-    example_20D(2000)
+    example_prod_gauss(20000)
+    # example_20D(2000)

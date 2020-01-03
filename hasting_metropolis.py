@@ -270,7 +270,68 @@ def _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu: np.ndarray, gamma: np.
         raise ValueError(f'mu and gamma should have the same shapes. Got: {mu.shape}, {gamma.shape}.')
 
 
-class AdaptiveMALA(HastingMetropolis):
+class MALA(HastingMetropolis):
+
+    def __init__(self, state, pi, log_pi,
+                 drift: Callable[[np.ndarray], np.ndarray],
+                 tau_bar: float,
+                 mu_0: np.ndarray,
+                 gamma_0: np.ndarray,
+                 sigma_0: np.ndarray,
+                 epsilon_2: float = 0,
+                 ):
+        """
+        Basic MALA sampler.
+
+        Parameters
+        ----------
+        state: initial state to start in.
+        pi: Callable. Unnormalized pdf of the distribution we want to approximate.
+        log_pi: log of the distribution we want to approximate
+        drift: Callable.
+        tau_bar: optimal acceptation rate.
+        mu_0, gamma_0, sigma_0: initial values for the parameters.
+        epsilon_2: parameters of the HM algorithm. Must verify: 0 < epsilon_2.
+        """
+        super(MALA, self).__init__(state, pi, log_pi)
+
+        self.drift = drift
+        self.tau_bar = tau_bar
+        self.mu = mu_0
+        self.gamma = gamma_0
+        self.sigma = sigma_0
+        self.epsilon_2 = epsilon_2
+
+    def proposal_sampler(self) -> np.ndarray:
+        big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
+        mean = self.state + self.sigma ** 2 / 2 * big_lambda @ self.drift(self.state)
+        variance = self.sigma ** 2 * big_lambda
+        sample = np.random.multivariate_normal(mean=mean, cov=variance)
+        return sample
+
+    def proposal_value(self, x, y):
+        assert x.shape == y.shape == self.state.shape
+        big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
+        mean = x + self.sigma ** 2 / 2 * big_lambda @ self.drift(x)
+        variance = self.sigma ** 2 * big_lambda
+        value = normal_pdf_unn(y, mean, variance)
+        return value
+
+    def log_proposal_value(self, x, y):
+        assert x.shape == y.shape == self.state.shape
+        big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
+        mean = x + self.sigma ** 2 / 2 * big_lambda @ self.drift(x)
+        variance = self.sigma ** 2 * big_lambda
+        value = log_normal_pdf_unn(y, mean, variance)
+        return value
+
+    def plot_acceptance_rates(self, offset=0):
+        super(MALA, self).plot_acceptance_rates(offset)
+        plt.plot([offset - 1, self.steps + 1], [self.tau_bar, self.tau_bar], c='r', linestyle='--',
+                 label=r'$\hat{\tau}$')
+
+
+class AdaptiveMALA(MALA):
 
     def __init__(self, state, pi, log_pi,
                  drift: Callable[[np.ndarray], np.ndarray],
@@ -302,17 +363,11 @@ class AdaptiveMALA(HastingMetropolis):
         [1] An adaptive version for the Metropolis adjusted Langevin algorithm with a truncated drift, Yves F. Atchadé
 
         """
-        super(AdaptiveMALA, self).__init__(state, pi, log_pi)
+        super(AdaptiveMALA, self).__init__(state, pi, log_pi, drift, tau_bar, mu_0, gamma_0, sigma_0, epsilon_2)
         _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu_0, gamma_0)
 
-        self.drift = drift
         self.epsilon_1 = epsilon_1
-        self.epsilon_2 = epsilon_2
         self.A_1 = A_1
-        self.tau_bar = tau_bar
-        self.mu = mu_0
-        self.gamma = gamma_0
-        self.sigma = sigma_0
         self.c_0 = robbins_monroe
         self.proj_sigma, self.proj_gamma, self.proj_mu = projection_operators(epsilon_1, A_1)
 
@@ -331,34 +386,6 @@ class AdaptiveMALA(HastingMetropolis):
         self.params_history['mu'].append(self.mu.copy())
         self.params_history['gamma'].append(self.gamma.copy())
         self.params_history['sigma'].append(self.sigma)
-
-    def proposal_sampler(self) -> np.ndarray:
-        big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
-        mean = self.state + self.sigma ** 2 / 2 * big_lambda @ self.drift(self.state)
-        variance = self.sigma ** 2 * big_lambda
-        sample = np.random.multivariate_normal(mean=mean, cov=variance)
-        return sample
-
-    def proposal_value(self, x, y):
-        assert x.shape == y.shape == self.state.shape
-        big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
-        mean = x + self.sigma ** 2 / 2 * big_lambda @ self.drift(x)
-        variance = self.sigma ** 2 * big_lambda
-        value = normal_pdf_unn(y, mean, variance)
-        return value
-
-    def log_proposal_value(self, x, y):
-        assert x.shape == y.shape == self.state.shape
-        big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
-        mean = x + self.sigma ** 2 / 2 * big_lambda @ self.drift(x)
-        variance = self.sigma ** 2 * big_lambda
-        value = log_normal_pdf_unn(y, mean, variance)
-        return value
-
-    def plot_acceptance_rates(self, offset=0):
-        super(AdaptiveMALA, self).plot_acceptance_rates(offset)
-        plt.plot([offset - 1, self.steps + 1], [self.tau_bar, self.tau_bar], c='r', linestyle='--',
-                 label=r'$\hat{\tau}$')
 
 
 class SymmetricRW(HastingMetropolis):

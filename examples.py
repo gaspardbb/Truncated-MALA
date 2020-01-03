@@ -147,5 +147,5 @@ def example_20D(N):
 
 
 if __name__ == '__main__':
-    example_prod_gauss(20000)
-    # example_20D(20000)
+    # example_prod_gauss(20000)
+    example_20D(2000)

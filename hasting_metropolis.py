@@ -122,7 +122,11 @@ class HastingMetropolis:
         numerator = self.pi(proposal) * self.proposal_value(proposal, self.state)
         denominator = self.pi(self.state) * self.proposal_value(self.state, proposal)
         alpha = 1 if denominator == 0 else min(1, numerator / denominator)
-        assert numerator >= 0 and denominator >= 0, "Numerator and denominator should be non-negative, got {} / {} at step {}.".format(numerator, denominator, self.steps)
+        # Poor handling of overflow; best way would be to use log computation.
+        alpha = 0 if np.isnan(numerator) else alpha
+        assert numerator >= 0 and denominator >= 0 or np.isnan(numerator), \
+            "Numerator and denominator should be non-negative, got {} / {} at step {}.".format(
+                numerator, denominator, self.steps)
         assert 0 <= alpha <= 1, f"Problem with the acceptance ratio. Expected a value between 0 and 1, got {alpha:.1e}."
         return alpha
 

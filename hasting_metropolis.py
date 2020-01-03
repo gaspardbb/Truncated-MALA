@@ -25,7 +25,7 @@ def normal_pdf_unn(x, mean, variance, inv_variance=None):
     assert x.ndim == mean.ndim
     if inv_variance is None:
         inv_variance = np.linalg.inv(variance)
-    result = np.exp(-1 / 2 * (x - mean).T @ inv_variance @ (x - mean))
+    result = np.exp(-1 / 2 * (x - mean).T[np.newaxis, :] @ inv_variance @ (x - mean)[:, np.newaxis])
     assert result.size == 1
     return result
 
@@ -122,7 +122,7 @@ class HastingMetropolis:
         numerator = self.pi(proposal) * self.proposal_value(proposal, self.state)
         denominator = self.pi(self.state) * self.proposal_value(self.state, proposal)
         alpha = 1 if denominator == 0 else min(1, numerator / denominator)
-        assert numerator >= 0 and denominator >= 0, f"Numerator and denominator should be non-negative."
+        assert numerator >= 0 and denominator >= 0, "Numerator and denominator should be non-negative, got {} / {} at step {}.".format(numerator, denominator, self.steps)
         assert 0 <= alpha <= 1, f"Problem with the acceptance ratio. Expected a value between 0 and 1, got {alpha:.1e}."
         return alpha
 
@@ -132,8 +132,8 @@ class HastingMetropolis:
         """
         plt.scatter(np.arange(offset, self.steps), self.history['acceptance rate'][offset:], s=2)
 
-    def plot_autocorr(self, dim=0, maxlags=100):
-        plt.acorr(np.array(self.history['state'])[:, dim], maxlags=maxlags)
+    def plot_autocorr(self, dim=0, maxlags=100, color='black', alpha=1, label=None):
+        plt.acorr(np.array(self.history['state'])[:, dim], maxlags=maxlags, color=color, alpha=alpha, label=label)
         plt.xlabel('Lag')
         plt.xlim(-1, maxlags + 1)
         plt.ylabel('Autocorrelation')
@@ -292,8 +292,6 @@ class AdaptiveMALA(HastingMetropolis):
         assert x.shape == y.shape == self.state.shape
         big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
         mean = x + self.sigma ** 2 / 2 * big_lambda @ self.drift(x)
-        mean = mean[:, np.newaxis]
-        y = y[:, np.newaxis]
         variance = self.sigma ** 2 * big_lambda
         value = normal_pdf_unn(y, mean, variance)
         return value

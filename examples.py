@@ -42,9 +42,9 @@ def product_of_gaussian(mus: np.ndarray, sigmas: np.ndarray):
     return pdf, grad_log_pdf
 
 
-if __name__ == '__main__':
+def example_prod_gauss(N):
     """
-    2D example of the truncated drift.
+        2D example of the truncated drift.
     """
     n_gaussians = 5
 
@@ -76,10 +76,9 @@ if __name__ == '__main__':
 
     rw_model = SymmetricRW(state=initial_state, pi=target_pdf, scale=gamma_0)
 
-    for i in range(20000):
+    for i in range(N):
         t_mala_model.sample()
         rw_model.sample()
-
 
     plt.figure(figsize=(8, 8))
     plt.subplot(2, 1, 1)
@@ -93,3 +92,60 @@ if __name__ == '__main__':
     rw_model.plot_autocorr(dim=1, color='b', alpha=0.5, label='SRW')
     plt.legend()
     plt.show()
+
+
+def example_20D(N):
+    # load covariance matrix
+    import urllib.request
+    target_url = "http://dept.stat.lsa.umich.edu/~yvesa/tmalaexcov.txt"
+    data = urllib.request.urlopen(target_url)
+    Sigma = []
+    for line in data:
+        Sigma.append(list(map(float, str.split(str(line)[2:-5]))))
+    Sigma = np.array(Sigma)
+
+    dim = Sigma.shape[0]
+
+    initial_state = np.zeros(dim)
+
+    target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([np.zeros(dim)]), sigmas=np.array([Sigma]))
+
+    # Parameter of the model
+    delta = 100
+    epsilon_1 = 1e-7
+    A_1 = 1e7
+    epsilon_2 = 1e-6
+    tau_bar = .574
+    mu_0 = np.zeros(dim)
+    gamma_0 = np.eye(dim)
+    sigma_0 = 1
+
+    drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
+
+    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, drift=drift,
+                                epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
+                                mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
+
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, scale=gamma_0)
+
+    for i in range(N):
+        t_mala_model.sample()
+        rw_model.sample()
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 1, 1)
+    t_mala_model.plot_acceptance_rates()
+    plt.legend()
+    plt.subplot(2, 1, 2)
+    rw_model.plot_acceptance_rates()
+
+    plt.figure(figsize=(8, 4))
+    t_mala_model.plot_autocorr(dim=1, color='r', alpha=0.5, label='T-MALA')
+    rw_model.plot_autocorr(dim=1, color='b', alpha=0.5, label='SRW')
+    plt.legend()
+    plt.show()
+
+
+if __name__ == '__main__':
+    example_prod_gauss(20000)
+    # example_20D(20000)

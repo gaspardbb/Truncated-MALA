@@ -102,9 +102,10 @@ def example_prod_gauss(N):
 
 
 def compare_models(models):
-    plt.figure(figsize=(8, 8))
     i = 1
     n = len(models.keys())
+    figx, figy = 4 * ((n + 1) // 2), 8
+    plt.figure(figsize=(figx, figy))
     for name, model in models.items():
         plt.subplot((n + 1) // 2, 2, i)
         model.plot_acceptance_rates()
@@ -113,7 +114,7 @@ def compare_models(models):
         i += 1
 
     i = 1
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(figx, figy))
     for name, model in models.items():
         plt.subplot((n + 1) // 2, 2, i)
         model.plot_autocorr(dim=1, label=name)
@@ -142,8 +143,7 @@ def example_gaussian(mu, Sigma, N):
 
     drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
 
-    mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
-                      epsilon_2=epsilon_2, tau_bar=tau_bar,
+    mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
                       gamma_0=gamma_0, sigma_0=sigma_0)
 
     t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
@@ -157,17 +157,21 @@ def example_gaussian(mu, Sigma, N):
                                      mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0
                                      )
 
+    opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma, sigma_0=0.59)
 
-    for i in range(N):
-        mala_model.sample()
-        t_mala_model.sample()
-        rw_model.sample()
-        t_rw_model.sample()
+    opt_mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
+                      gamma_0=Sigma, sigma_0=1.09)
 
     models = {'MALA': mala_model,
               'T-MALA': t_mala_model,
+              'OPT-MALA': opt_mala_model,
               'SRW': rw_model,
-              'T-SRW': t_rw_model}
+              'T-SRW': t_rw_model,
+              'OPT-SRW': opt_rw_model}
+
+    for _, model in models.items():
+        for _ in range(N):
+            model.sample()
 
     compare_models(models)
 
@@ -191,5 +195,5 @@ def example_vanilla_gauss(dim, N):
 
 if __name__ == '__main__':
     # example_prod_gauss(200)
-    # example_20D(20000)
-    example_vanilla_gauss(dim=2, N=10000)
+    example_20D(20000)
+    # example_vanilla_gauss(dim=2, N=1000)

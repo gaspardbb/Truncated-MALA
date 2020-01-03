@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     rw_model = SymmetricRW(state=initial_state, pi=target_pdf, scale=gamma_0)
 
-    for i in range(50000):
+    for i in range(20000):
         t_mala_model.sample()
         rw_model.sample()
 
@@ -88,10 +88,8 @@ if __name__ == '__main__':
     plt.subplot(2, 1, 2)
     rw_model.plot_acceptance_rates()
 
-    plt.figure(figsize=(8, 8))
-    plt.subplot(2, 1, 1)
-    t_mala_model.plot_autocorr(dim=1)
+    plt.figure(figsize=(8, 4))
+    t_mala_model.plot_autocorr(dim=1, color='r', alpha=0.5, label='T-MALA')
+    rw_model.plot_autocorr(dim=1, color='b', alpha=0.5, label='SRW')
     plt.legend()
-    plt.subplot(2, 1, 2)
-    rw_model.plot_autocorr(dim=1)
     plt.show()

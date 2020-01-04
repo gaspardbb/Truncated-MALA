@@ -66,9 +66,9 @@ def example_prod_gauss(N):
     target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=target_mus, sigmas=target_sigmas)
 
     # Parameter of the model
-    delta = 100
+    delta = 1000
     epsilon_1 = 1e-7
-    A_1 = 1e7
+    A_1 = 1e4
     epsilon_2 = 1e-6
     tau_bar = .574
     mu_0 = np.zeros(2)
@@ -160,7 +160,7 @@ def example_gaussian(mu, Sigma, N):
     opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma, sigma_0=0.59)
 
     opt_mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
-                      gamma_0=Sigma, sigma_0=1.09)
+                          gamma_0=Sigma, sigma_0=1.09)
 
     models = {'MALA': mala_model,
               'T-MALA': t_mala_model,
@@ -196,4 +196,6 @@ def example_vanilla_gauss(dim, N):
 if __name__ == '__main__':
     # example_prod_gauss(200)
     example_20D(20000)
-    # example_vanilla_gauss(dim=2, N=1000)
+    # example_vanilla_gauss(dim=2, N=10000)
+    s = np.random.random(size=(6, 6))
+    example_gaussian(np.zeros(6), s @ s.T, N=10000)

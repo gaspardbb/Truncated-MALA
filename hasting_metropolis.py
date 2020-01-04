@@ -341,7 +341,8 @@ class AdaptiveMALA(MALA):
                  mu_0: np.ndarray,
                  gamma_0: np.ndarray,
                  sigma_0: float,
-                 robbins_monroe=10
+                 robbins_monroe=10,
+                 burn_in=1000
                  ):
         """
         Adaptative MALA sampler, described in [1].
@@ -356,6 +357,7 @@ class AdaptiveMALA(MALA):
         tau_bar: target optimal acceptation rate.
         mu_0, gamma_0, sigma_0: initial values for the parameters.
         robbins_monroe: constant c_0 for the robbins monroe coefficients: g_n = c_0/n
+        burn_in: int corresponding to the number of steps after which we start updating the covariance matrix
 
         References
         ----------
@@ -370,6 +372,7 @@ class AdaptiveMALA(MALA):
         self.mu = mu_0
         self.c_0 = robbins_monroe
         self.proj_sigma, self.proj_gamma, self.proj_mu = projection_operators(epsilon_1, A_1)
+        self.burn_in = burn_in
 
         self.params_history = {'mu': [mu_0.copy()],
                                'gamma': [gamma_0.copy()],
@@ -377,10 +380,11 @@ class AdaptiveMALA(MALA):
 
     def update_params(self, alpha):
         coeff = self.c_0 / self.steps
-        covariance = (self.state - self.mu)[:, np.newaxis] @ (self.state - self.mu)[np.newaxis, :]
 
         self.mu = self.proj_mu(self.mu + coeff * (self.state - self.mu))
-        self.gamma = self.proj_gamma(self.gamma + coeff * (covariance - self.gamma))
+        if self.steps > self.burn_in:
+            covariance = (self.state - self.mu)[:, np.newaxis] @ (self.state - self.mu)[np.newaxis, :]
+            self.gamma = self.proj_gamma(self.gamma + coeff * (covariance - self.gamma))
         self.sigma = self.proj_sigma(self.sigma + coeff * (alpha - self.tau_bar))
 
         self.params_history['mu'].append(self.mu.copy())
@@ -419,7 +423,8 @@ class AdaptiveSymmetricRW(SymmetricRW):
                  mu_0: np.ndarray,
                  gamma_0: np.ndarray,
                  sigma_0: float,
-                 robbins_monroe=10
+                 robbins_monroe=10,
+                 burn_in=1000
                  ):
         """
         An Adaptive symmetric random walk HM sampler.
@@ -430,6 +435,7 @@ class AdaptiveSymmetricRW(SymmetricRW):
         pi: distribution we want to approximate.
         log_pi: log of the distribution we want to approximate
         gamma_0: scale parameter for the proposal distribution.
+        burn_in: int corresponding to the number of steps after which we start updating the covariance matrix
         """
         super(AdaptiveSymmetricRW, self).__init__(state, pi, log_pi,
                                                   gamma_0=gamma_0,
@@ -444,6 +450,7 @@ class AdaptiveSymmetricRW(SymmetricRW):
         self.mu = mu_0
         self.c_0 = robbins_monroe
         self.proj_sigma, self.proj_gamma, self.proj_mu = projection_operators(epsilon_1, A_1)
+        self.burn_in = burn_in
 
         self.params_history = {'mu': [mu_0.copy()],
                                'gamma': [gamma_0.copy()],
@@ -451,12 +458,14 @@ class AdaptiveSymmetricRW(SymmetricRW):
 
     def update_params(self, alpha):
         coeff = self.c_0 / self.steps
-        covariance = (self.state - self.mu)[:, np.newaxis] @ (self.state - self.mu)[np.newaxis, :]
 
         self.mu = self.proj_mu(self.mu + coeff * (self.state - self.mu))
-        self.gamma = self.proj_gamma(self.gamma + coeff * (covariance - self.gamma))
+        if self.steps > self.burn_in:
+            covariance = (self.state - self.mu)[:, np.newaxis] @ (self.state - self.mu)[np.newaxis, :]
+            self.gamma = self.proj_gamma(self.gamma + coeff * (covariance - self.gamma))
         self.sigma = self.proj_sigma(self.sigma + coeff * (alpha - self.tau_bar))
 
         self.params_history['mu'].append(self.mu.copy())
         self.params_history['gamma'].append(self.gamma.copy())
         self.params_history['sigma'].append(self.sigma)
+

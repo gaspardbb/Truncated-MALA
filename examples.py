@@ -139,28 +139,32 @@ def example_gaussian(mu, Sigma, N):
     tau_bar = .574
     mu_0 = np.zeros(dim)
     gamma_0 = np.eye(dim)
-    sigma_0 = 1
+
+    sigma_rw = 1e-1
+    sigma_MALA = 5e-2
+    sigma_opt_MALA = 1.3e-1
+    sigma_opt_rw = 0.55
 
     drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
 
     mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
-                      gamma_0=gamma_0, sigma_0=sigma_0)
+                      gamma_0=gamma_0, sigma_0=sigma_MALA)
 
     t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
                                 epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
-                                mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
+                                mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_MALA)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=gamma_0)
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=gamma_0, sigma_0=sigma_rw)
 
     t_rw_model = AdaptiveSymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf,
                                      epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
-                                     mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0
+                                     mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_rw
                                      )
 
-    opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma, sigma_0=0.59)
+    opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma, sigma_0=sigma_opt_rw)
 
     opt_mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
-                          gamma_0=Sigma, sigma_0=1.09)
+                          gamma_0=Sigma, sigma_0=sigma_opt_MALA)
 
     models = {'MALA': mala_model,
               'T-MALA': t_mala_model,
@@ -195,7 +199,7 @@ def example_vanilla_gauss(dim, N):
 
 if __name__ == '__main__':
     # example_prod_gauss(200)
-    example_20D(20000)
+    example_20D(50000)
     # example_vanilla_gauss(dim=2, N=10000)
-    s = np.random.random(size=(6, 6))
-    example_gaussian(np.zeros(6), s @ s.T, N=10000)
+    # s = np.random.random(size=(6, 6))
+    # example_gaussian(np.zeros(6), s @ s.T, N=10000)

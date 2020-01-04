@@ -424,7 +424,7 @@ class AdaptiveSymmetricRW(SymmetricRW):
                  gamma_0: np.ndarray,
                  sigma_0: float,
                  robbins_monroe=10,
-                 burn_in=1000
+                 burn_in=1
                  ):
         """
         An Adaptive symmetric random walk HM sampler.

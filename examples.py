@@ -123,6 +123,31 @@ def compare_models(models):
     plt.show()
 
 
+def compare_mean_square_jump(models: dict, stationarity: int, ax=None):
+    """
+    Compare the mean square jumps accross different models.
+
+    Parameters
+    ----------
+    models: dict
+        A dictionary of models
+    stationarity: int
+        Number of steps before stationarity (cf. HastingMetropolis)
+    ax: plt.Axes
+        A Matplotlib axes
+    """
+    result = {k: models[k].mean_square_jump(stationarity=stationarity) for k in models.keys()}
+
+    if ax is None:
+        _, ax = plt.subplots()
+    # ax.bar(range(len(result)), list(result.values()), align='center')
+    # ax.set_xticks(range(len(result)), list(result.keys()))
+    ax.bar(*zip(*result.items()))
+    ax.set_xlabel("Model")
+    ax.set_ylabel("Mean Square Jump")
+    return result
+
+
 def example_gaussian(mu, Sigma, N):
     dim = Sigma.shape[0]
 
@@ -178,6 +203,7 @@ def example_gaussian(mu, Sigma, N):
             model.sample()
 
     compare_models(models)
+    return models
 
 
 def example_20D(N):
@@ -190,16 +216,20 @@ def example_20D(N):
         Sigma.append(list(map(float, str.split(str(line)[2:-5]))))
     Sigma = np.array(Sigma)
     dim = Sigma.shape[0]
-    example_gaussian(np.zeros(dim), Sigma, N)
+    models = example_gaussian(np.zeros(dim), Sigma, N)
+    return models
 
 
 def example_vanilla_gauss(dim, N):
-    example_gaussian(np.zeros(dim), np.eye(dim), N)
+    models = example_gaussian(np.zeros(dim), np.eye(dim), N)
+    return models
 
 
 if __name__ == '__main__':
     # example_prod_gauss(200)
-    example_20D(50000)
+    models = example_20D(20000)
+
+    compare_mean_square_jump(models, 1000)
     # example_vanilla_gauss(dim=2, N=10000)
     # s = np.random.random(size=(6, 6))
-    # example_gaussian(np.zeros(6), s @ s.T, N=10000)
+    # example_gaussian(np.zeros(6), s @ s.T, N=1000)

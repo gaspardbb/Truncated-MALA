@@ -151,7 +151,7 @@ def compare_mean_square_jump(models: dict, stationarity: int, ax=None):
     return result
 
 
-def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000,  ax=None):
+def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000, axes=None):
     """
         Compare the efficiency (mu_dim) accross different models.
 
@@ -165,11 +165,11 @@ def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000,  ax
             number of chains used to estimate mu_dim
         n_stationarity: int
             lentgh of the chain from which we consider stationarity is reached
-        ax: plt.Axes
-            A Matplotlib axes
+        axes: plt.Axes
+            A list of Matplotlib axes
         """
 
-    result = {}
+    result = {'mu_dims': {}, 'std_errors': {}, 'efficiencies': {}}
 
     for name, model in models.items():
         mu_dim = []
@@ -178,17 +178,27 @@ def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000,  ax
             for _ in range(n_stationarity):
                 model.sample()
             mu_dim.append(model.state[dim])
+        std_error = np.std(mu_dim)
         mu_dim = np.mean(mu_dim)
-        result[name] = mu_dim
+        result['mu_dims'][name] = mu_dim
+        result['std_errors'][name] = std_error
+        if name == 'SRW':
+            ref_eff = std_error
 
+    for name, model in models.items():
+        result['efficiencies'][name] = result['std_errors'][name] / ref_eff
 
-    if ax is None:
-        _, ax = plt.subplots()
-    # ax.bar(range(len(result)), list(result.values()), align='center')
-    # ax.set_xticks(range(len(result)), list(result.keys()))
-    ax.bar(*zip(*result.items()))
+    if axes is None:
+        _, axes = plt.subplots(nrows=2, figsize=(5,8))
+    ax = axes[0]
+    ax.bar(*zip(*result['mu_dims'].items()))
     ax.set_xlabel("Model")
     ax.set_ylabel("Estimation of mu")
+
+    ax = axes[1]
+    ax.bar(*zip(*result['efficiencies'].items()))
+    ax.set_xlabel("Model")
+    ax.set_ylabel("Comparison of efficiencies")
     return result
 
 

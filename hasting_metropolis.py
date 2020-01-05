@@ -433,7 +433,6 @@ class AdaptiveMALA(MALA):
         self.params_history['mu'] = [self.mu.copy()]
 
 
-
 class SymmetricRW(MALA):
     def __init__(self, state, pi, log_pi, gamma_0, sigma_0=1, epsilon_2=0):
         """

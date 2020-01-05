@@ -101,7 +101,7 @@ def example_prod_gauss(N):
     plt.show()
 
 
-def compare_models(models):
+def compare_acceptance_rates(models):
     i = 1
     n = len(models.keys())
     figx, figy = 4 * ((n + 1) // 2), 8
@@ -113,14 +113,17 @@ def compare_models(models):
         plt.title(name)
         i += 1
 
+
+def compare_autocorr(models):
     i = 1
+    n = len(models.keys())
+    figx, figy = 4 * ((n + 1) // 2), 8
     plt.figure(figsize=(figx, figy))
     for name, model in models.items():
         plt.subplot((n + 1) // 2, 2, i)
         model.plot_autocorr(dim=1, label=name)
         plt.legend()
         i += 1
-    plt.show()
 
 
 def compare_mean_square_jump(models: dict, stationarity: int, ax=None):
@@ -148,6 +151,55 @@ def compare_mean_square_jump(models: dict, stationarity: int, ax=None):
     return result
 
 
+def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000,  ax=None):
+    """
+        Compare the efficiency (mu_dim) accross different models.
+
+        Parameters
+        ----------
+        models: dict
+            A dictionary of models
+        dim: int
+            Efficiency computed on mu_dim
+        n_iter:
+            number of chains used to estimate mu_dim
+        n_stationarity: int
+            lentgh of the chain from which we consider stationarity is reached
+        ax: plt.Axes
+            A Matplotlib axes
+        """
+
+    result = {}
+
+    for name, model in models.items():
+        mu_dim = []
+        for _ in range(n_iter):
+            model.initialize()
+            for _ in range(n_stationarity):
+                model.sample()
+            mu_dim.append(model.state[dim])
+        mu_dim = np.mean(mu_dim)
+        result[name] = mu_dim
+
+
+    if ax is None:
+        _, ax = plt.subplots()
+    # ax.bar(range(len(result)), list(result.values()), align='center')
+    # ax.set_xticks(range(len(result)), list(result.keys()))
+    ax.bar(*zip(*result.items()))
+    ax.set_xlabel("Model")
+    ax.set_ylabel("Estimation of mu")
+    return result
+
+
+def compare_models(models):
+    compare_acceptance_rates(models)
+    compare_autocorr(models)
+    compare_mean_square_jump(models, stationarity=1000)
+    compare_efficiency(models, dim=0, n_iter=2, n_stationarity=200)
+    plt.show()
+
+
 def example_gaussian(mu, Sigma, N):
     dim = Sigma.shape[0]
 
@@ -157,7 +209,7 @@ def example_gaussian(mu, Sigma, N):
                                                                           sigmas=np.array([Sigma]))
 
     # Parameter of the model
-    delta = 100
+    delta = 1000
     epsilon_1 = 1e-7
     A_1 = 1e7
     epsilon_2 = 1e-6
@@ -165,10 +217,10 @@ def example_gaussian(mu, Sigma, N):
     mu_0 = np.zeros(dim)
     gamma_0 = np.eye(dim)
 
-    sigma_rw = 1e-1
+    sigma_rw = 5e-2
     sigma_MALA = 5e-2
     sigma_opt_MALA = 1.3e-1
-    sigma_opt_rw = 0.55
+    sigma_opt_rw = 5.5e-1
 
     drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
 
@@ -186,7 +238,8 @@ def example_gaussian(mu, Sigma, N):
                                      mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_rw
                                      )
 
-    opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma, sigma_0=sigma_opt_rw)
+    opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma,
+                               sigma_0=sigma_opt_rw)
 
     opt_mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
                           gamma_0=Sigma, sigma_0=sigma_opt_MALA)
@@ -202,7 +255,6 @@ def example_gaussian(mu, Sigma, N):
         for _ in range(N):
             model.sample()
 
-    compare_models(models)
     return models
 
 
@@ -216,20 +268,18 @@ def example_20D(N):
         Sigma.append(list(map(float, str.split(str(line)[2:-5]))))
     Sigma = np.array(Sigma)
     dim = Sigma.shape[0]
-    models = example_gaussian(np.zeros(dim), Sigma, N)
-    return models
+    return example_gaussian(np.zeros(dim), Sigma, N)
 
 
 def example_vanilla_gauss(dim, N):
-    models = example_gaussian(np.zeros(dim), np.eye(dim), N)
-    return models
+    return example_gaussian(np.zeros(dim), np.eye(dim), N)
 
 
 if __name__ == '__main__':
     # example_prod_gauss(200)
-    models = example_20D(20000)
-
-    compare_mean_square_jump(models, 1000)
-    # example_vanilla_gauss(dim=2, N=10000)
+    # models = example_20D(20000)
+    models = example_vanilla_gauss(dim=2, N=5000)
     # s = np.random.random(size=(6, 6))
-    # example_gaussian(np.zeros(6), s @ s.T, N=1000)
+    # models = example_gaussian(np.zeros(6), s @ s.T, N=20000)
+    compare_models(models)
+    plt.show()

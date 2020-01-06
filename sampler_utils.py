@@ -8,7 +8,7 @@ def banana(B, dim):
     """
     Returns three callables:
     * the unnormalized pdf of the banana distribution.
-    * The log of the previous one
+    * the log of the previous one
     * the gradient of the log of this pdf (useful for the drift).
 
     Parameters
@@ -22,6 +22,7 @@ def banana(B, dim):
     -------
     pdf, log_pdf, grad_log_pdf
     """
+
     def log_pdf(x):
         assert x.shape == (dim,)
         result = -x[0] ** 2 / 200 - 1 / 2 * (x[1] + B * x[0] ** 2 - 100 * B) ** 2 - 1 / 2 * np.sum(x[2:] ** 2)

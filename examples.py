@@ -1,6 +1,6 @@
 import numpy as np
 
-from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW,  MALA, \
+from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW, MALA, \
     AdaptiveSymmetricRW
 import matplotlib.pyplot as plt
 
@@ -19,7 +19,7 @@ def _update_dict(to_update_dict: dict, default_dict: dict):
 
 
 def test_models(target_pdf, log_target_pdf, target_grad_log_pdf,
-                N, initial_state = np.zeros(2),
+                N, initial_state=np.zeros(2),
                 return_target=False,
                 params_t_mala: dict = {},
                 params_rw: dict = {},
@@ -55,7 +55,7 @@ def test_models(target_pdf, log_target_pdf, target_grad_log_pdf,
     drift = truncated_drift(delta=params_t_mala['delta'], grad_log_pi=target_grad_log_pdf)
 
     # MALA
-    default_params_mala = {'tau_bar': .574, 'gamma_0': np.eye(2), 'sigma_0': 1,}
+    default_params_mala = {'tau_bar': .574, 'gamma_0': np.eye(2), 'sigma_0': 1}
     params_mala = _update_dict(params_mala, default_params_mala)
 
     # RW
@@ -139,21 +139,21 @@ def compare_mean_square_jump(models: dict, stationarity: int, ax=None):
 
 def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000, axes=None):
     """
-        Compare the efficiency (mu_dim) accross different models.
+    Compare the efficiency (mu_dim) accross different models.
 
-        Parameters
-        ----------
-        models: dict
-            A dictionary of models
-        dim: int
-            Efficiency computed on mu_dim
-        n_iter:
-            number of chains used to estimate mu_dim
-        n_stationarity: int
-            lentgh of the chain from which we consider stationarity is reached
-        axes: plt.Axes
-            A list of Matplotlib axes
-        """
+    Parameters
+    ----------
+    models: dict
+        A dictionary of models
+    dim: int
+        Efficiency computed on mu_dim
+    n_iter:
+        number of chains used to estimate mu_dim
+    n_stationarity: int
+        lentgh of the chain from which we consider stationarity is reached
+    axes: plt.Axes
+        A list of Matplotlib axes
+    """
 
     result = {'mu_dims': {}, 'std_errors': {}, 'efficiencies': {}}
 
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     # Banana : use pdf
     result = grid_evaluation(target_pdf, 200, x_range, y_range)
 
-    ani = animation_model_states(models, result, x_range + y_range,
+    animation = animation_model_states(models, result, x_range + y_range,
                                  n_start=0,
                                  n_end=200)
 

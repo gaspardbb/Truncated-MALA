@@ -59,7 +59,7 @@ def _check_models_dims(models: Dict[str, HastingMetropolis], dims, n_start, n_en
 
 
 def _plot_ellipse_covariance(mean, cov, ax: plt.Axes, confidence=.9, facecolor='none', edgecolor="k",
-                            linestyle='--', **kwargs):
+                             linestyle='--', **kwargs):
     if type(confidence) is not list:
         confidence = [confidence]
     eigvals, eigvecs = np.linalg.eigh(cov)
@@ -70,12 +70,12 @@ def _plot_ellipse_covariance(mean, cov, ax: plt.Axes, confidence=.9, facecolor='
     if eigvecs[1, 0] == 0:
         angle = np.sign(eigvecs[1, 1]) * 90
     else:
-        angle = np.arctan(eigvecs[1, 1]/eigvecs[1, 0]) * 360 / (2 * np.pi)
+        angle = np.arctan(eigvecs[1, 1] / eigvecs[1, 0]) * 360 / (2 * np.pi)
 
     patches = []
     for conf in confidence:
         s = np.sqrt(chi2.ppf(conf, df=2))
-        ellipse = Ellipse(mean, width=2*eigvals[1] * s, height=2 * eigvals[0] * s, angle=angle,
+        ellipse = Ellipse(mean, width=2 * eigvals[1] * s, height=2 * eigvals[0] * s, angle=angle,
                           facecolor=facecolor, alpha=.3,
                           edgecolor=edgecolor, linestyle=linestyle, **kwargs)
         patches.append(ax.add_patch(ellipse))
@@ -161,7 +161,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
             if plot_covariance and hasattr(model, 'gamma'):
                 # Annoying little case for samplers which do not update the gamma param
                 len_gamma = len(model.params_history['gamma'])
-                if len_gamma-1 < iteration:
+                if len_gamma - 1 < iteration:
                     cov = model.params_history['gamma'][-1]
                 else:
                     cov = model.params_history['gamma'][iteration]
@@ -172,7 +172,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                 covariance_patches += new_patch
         return list(lines.values()) + covariance_patches
 
-    animation = FuncAnimation(fig, update_frame, frames=np.arange(1, n_end-n_start), blit=True, interval=interval,
+    animation = FuncAnimation(fig, update_frame, frames=np.arange(1, n_end - n_start), blit=True, interval=interval,
                               **kwargs)
 
     return animation

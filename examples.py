@@ -231,16 +231,16 @@ if __name__ == '__main__':
     y_range = (-10, 10)
 
     models, (log_target_pdf, target_pdf) = test_models(*pdf, N=250, return_target=True,
-                                                        params_t_mala={'threshold_start_estimate': 0,
-                                                               'threshold_use_estimate': 30, 'robbins_monroe': 5,
-                                                                       'sigma_0':100})
+                                                       params_t_mala={'threshold_start_estimate': 0,
+                                                                      'threshold_use_estimate': 20, 'robbins_monroe': 5,
+                                                                      'sigma_0': 100})
     # Gaussian : use log pdf
     # result = grid_evaluation(log_target_pdf, 200, x_range, y_range)
     # Banana : use pdf
     result = grid_evaluation(target_pdf, 200, x_range, y_range)
 
     animation = animation_model_states(models, result, x_range + y_range,
-                                 n_start=0,
-                                 n_end=200)
+                                       n_start=0,
+                                       n_end=200)
 
     animation.save('basic_animation.html', fps=30, extra_args=['-vcodec', 'libx264'])

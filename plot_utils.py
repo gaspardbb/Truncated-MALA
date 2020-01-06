@@ -141,7 +141,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
 
     legend_elements = [Line2D([0], [0], color=c, markerfacecolor=c, marker='*', label=k)
                        for c, k in zip(colors, models)]
-    ax.legend(handles=legend_elements)
+    ax.legend(handles=legend_elements, loc='upper right')
 
     n_covariance_models = len([model for model in models.values() if hasattr(model, 'gamma')])
 
@@ -162,17 +162,16 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                 # Annoying little case for samplers which do not update the gamma param
                 len_gamma = len(model.params_history['gamma'])
                 if len_gamma - 1 < iteration:
-                    cov = model.params_history['gamma'][-1]
+                    cov = model.params_history['gamma'][-1] * model.params_history['sigma'][-1] ** 2
                 else:
-                    cov = model.params_history['gamma'][iteration]
+                    cov = model.params_history['gamma'][iteration] * model.params_history['sigma'][iteration] ** 2
                 new_patch = _plot_ellipse_covariance(model_state[iteration],
                                                      cov=cov,
                                                      ax=ax,
                                                      edgecolor=colors[i], lw=1.2)
                 covariance_patches += new_patch
-        return list(lines.values()) + covariance_patches
+        return list(lines.values()) + covariance_patches + [ax.set_title("Step {}".format(iteration))]
 
-    animation = FuncAnimation(fig, update_frame, frames=np.arange(1, n_end - n_start), blit=True, interval=interval,
-                              **kwargs)
+    animation = FuncAnimation(fig, update_frame, frames=n_end - n_start, blit=True, interval=interval, **kwargs)
 
     return animation

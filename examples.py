@@ -226,12 +226,13 @@ if __name__ == '__main__':
 
     # Banananana
     pdf = banana(0.05, dim=2)
-    x_range = (-20, 20)
-    y_range = (-20, 20)
+    x_range = (-15, 15)
+    y_range = (-10, 10)
 
     models, (log_target_pdf, target_pdf) = test_models(*pdf, N=250, return_target=True,
                                                         params_t_mala={'threshold_start_estimate': 0,
-                                                               'threshold_use_estimate': 10, 'robbins_monroe': 5})
+                                                               'threshold_use_estimate': 30, 'robbins_monroe': 5,
+                                                                       'sigma_0':100})
     # Gaussian : use log pdf
     # result = grid_evaluation(log_target_pdf, 200, x_range, y_range)
     # Banana : use pdf

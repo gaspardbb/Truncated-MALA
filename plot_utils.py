@@ -77,7 +77,7 @@ def _plot_ellipse_covariance(mean, cov, ax: plt.Axes, confidence=.9, facecolor='
         s = np.sqrt(chi2.ppf(conf, df=2))
         ellipse = Ellipse(mean, width=2*eigvals[1] * s, height=2 * eigvals[0] * s, angle=angle,
                           facecolor=facecolor, alpha=.3,
-                          edgecolor=edgecolor, linestyle=linestyle)
+                          edgecolor=edgecolor, linestyle=linestyle, **kwargs)
         patches.append(ax.add_patch(ellipse))
     return patches
 
@@ -143,8 +143,15 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                        for c, k in zip(colors, models)]
     ax.legend(handles=legend_elements)
 
+    n_covariance_models = len([model for model in models.values() if hasattr(model, 'gamma')])
+
     def update_frame(iteration):
         covariance_patches = []
+        # Remove previous ellipse patches if present
+        if iteration > 1 and plot_covariance:
+            for _ in range(n_covariance_models):
+                ax.patches.pop(0)
+
         for i, k in enumerate(models):
             model = models[k]
             model_state = models_states[k]
@@ -161,7 +168,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                 new_patch = _plot_ellipse_covariance(model_state[iteration],
                                                      cov=cov,
                                                      ax=ax,
-                                                     edgecolor=colors[i])
+                                                     edgecolor=colors[i], lw=1.2)
                 covariance_patches += new_patch
         return list(lines.values()) + covariance_patches
 

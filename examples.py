@@ -114,14 +114,14 @@ def compare_acceptance_rates(models):
         i += 1
 
 
-def compare_autocorr(models):
+def compare_autocorr(models, dim=0):
     i = 1
     n = len(models.keys())
     figx, figy = 4 * ((n + 1) // 2), 8
     plt.figure(figsize=(figx, figy))
     for name, model in models.items():
         plt.subplot((n + 1) // 2, 2, i)
-        model.plot_autocorr(dim=1, label=name)
+        model.plot_autocorr(dim=dim, label=name)
         plt.legend()
         i += 1
 
@@ -178,22 +178,22 @@ def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000, axe
             for _ in range(n_stationarity):
                 model.sample()
             mu_dim.append(model.state[dim])
-        std_error = np.std(mu_dim)
-        mu_dim = np.mean(mu_dim)
-        result['mu_dims'][name] = mu_dim
-        result['std_errors'][name] = std_error
+        result['mu_dims'][name] = mu_dim.copy()
+        result['std_errors'][name] = np.std(mu_dim)
         if name == 'SRW':
-            ref_eff = std_error
+            ref_eff = result['std_errors'][name]
 
     for name, model in models.items():
         result['efficiencies'][name] = result['std_errors'][name] / ref_eff
 
     if axes is None:
-        _, axes = plt.subplots(nrows=2, figsize=(5,8))
+        _, axes = plt.subplots(nrows=2, figsize=(8, 8))
     ax = axes[0]
-    ax.bar(*zip(*result['mu_dims'].items()))
+    labels, mu_dims = zip(*result['mu_dims'].items())
+    ax.boxplot(x=list(mu_dims), labels=list(labels))
+    ax.plot([0, len(labels) + 1], [0, 0], linestyle='--', c='g')
     ax.set_xlabel("Model")
-    ax.set_ylabel("Estimation of mu")
+    ax.set_ylabel("Estimation of mu{}".format(dim + 1))
 
     ax = axes[1]
     ax.bar(*zip(*result['efficiencies'].items()))
@@ -202,11 +202,11 @@ def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000, axe
     return result
 
 
-def compare_models(models):
+def compare_models(models, dim=0):
     compare_acceptance_rates(models)
-    compare_autocorr(models)
+    compare_autocorr(models, dim=dim)
     compare_mean_square_jump(models, stationarity=1000)
-    compare_efficiency(models, dim=0, n_iter=2, n_stationarity=200)
+    compare_efficiency(models, dim=dim, n_iter=50, n_stationarity=10000)
     plt.show()
 
 
@@ -227,8 +227,8 @@ def example_gaussian(mu, Sigma, N):
     mu_0 = np.zeros(dim)
     gamma_0 = np.eye(dim)
 
-    sigma_rw = 5e-2
-    sigma_MALA = 5e-2
+    sigma_rw = 1e-1
+    sigma_MALA = 1e-1
     sigma_opt_MALA = 1.3e-1
     sigma_opt_rw = 5.5e-1
 
@@ -287,9 +287,9 @@ def example_vanilla_gauss(dim, N):
 
 if __name__ == '__main__':
     # example_prod_gauss(200)
-    # models = example_20D(20000)
-    models = example_vanilla_gauss(dim=2, N=5000)
+    models = example_20D(50000)
+    # models = example_vanilla_gauss(dim=2, N=5000)
     # s = np.random.random(size=(6, 6))
     # models = example_gaussian(np.zeros(6), s @ s.T, N=20000)
-    compare_models(models)
+    compare_models(models, dim=5)
     plt.show()

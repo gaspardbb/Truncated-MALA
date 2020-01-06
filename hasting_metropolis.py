@@ -211,6 +211,7 @@ class HastingMetropolis:
         norm = np.sum(difference, axis=1)
         assert norm.shape == (self.steps - stationarity,)
         result = np.mean(norm, axis=0)
+        result = np.sqrt(result)
         return result
 
     def initialize(self):

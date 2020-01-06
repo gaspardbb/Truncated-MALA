@@ -1,7 +1,9 @@
 import numpy as np
 from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW, normal_pdf_unn, log_normal_pdf_unn, MALA, \
-    AdaptiveSymmetricRW
+    AdaptiveSymmetricRW, HastingMetropolis
 import matplotlib.pyplot as plt
+
+from plot_utils import grid_evaluation, animation_model_states
 
 
 def product_of_gaussian(mus: np.ndarray, sigmas: np.ndarray):
@@ -23,24 +25,28 @@ def product_of_gaussian(mus: np.ndarray, sigmas: np.ndarray):
     """
     assert mus.ndim == 2 and sigmas.ndim == 3
     assert mus.shape[0] == sigmas.shape[0] and mus.shape[1] == sigmas.shape[1] == sigmas.shape[2]
+    dim = mus.shape[1]
     n_gaussians = mus.shape[0]
     inv_sigmas = np.zeros_like(sigmas)
     for j in range(n_gaussians):
         inv_sigmas[j] = np.linalg.inv(sigmas[j])
 
     def pdf(x):
+        assert x.shape == (dim,)
         result = 1
         for i in range(n_gaussians):
             result *= normal_pdf_unn(x, mus[i], sigmas[i], inv_variance=inv_sigmas[i])
         return result
 
     def log_pdf(x):
+        assert x.shape == (dim,)
         result = 0
         for i in range(n_gaussians):
             result += log_normal_pdf_unn(x, mus[i], sigmas[i], inv_variance=inv_sigmas[i])
         return result
 
     def grad_log_pdf(x):
+        assert x.shape == (dim,)
         result = 0
         for i in range(n_gaussians):
             result += inv_sigmas[i] @ (x - mus[i])
@@ -49,12 +55,37 @@ def product_of_gaussian(mus: np.ndarray, sigmas: np.ndarray):
     return pdf, log_pdf, grad_log_pdf
 
 
-def example_prod_gauss(N):
+def _update_dict(to_update_dict: dict, default_dict: dict):
     """
-        2D example of the truncated drift.
+    Update a dictionary with the default values.
     """
-    n_gaussians = 5
+    for param in default_dict:
+        if param not in to_update_dict.keys():
+            to_update_dict[param] = default_dict[param]
+    return to_update_dict
 
+
+def example_prod_gauss(N, n_gaussians: int = 5, return_log_target=False, params_mala: dict = {}, params_rw: dict = {}):
+    """
+    2D example of the truncated drift.
+
+    Parameters
+    ----------
+    N: int
+        # of samples
+    n_gaussians: int
+        # of gaussian in the product
+    return_log_target: bool
+        Whether to return the target function
+    params_mala: dict
+        Parameters to override in the default parameters dictionary for MALA. See default_params_mala.
+    params_rw
+        Same for RW. See default_params_default_params_rw.
+
+    Returns
+    -------
+    Dictionary of models, or Dictionary of models, function.
+    """
     # Means between 0 and 1
     target_mus = np.random.uniform(0, 1, (n_gaussians, 2))
     # Isotropic
@@ -66,39 +97,30 @@ def example_prod_gauss(N):
     target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=target_mus, sigmas=target_sigmas)
 
     # Parameter of the model
-    delta = 1000
-    epsilon_1 = 1e-7
-    A_1 = 1e4
-    epsilon_2 = 1e-6
-    tau_bar = .574
-    mu_0 = np.zeros(2)
-    gamma_0 = np.eye(2)
-    sigma_0 = 1
+    default_params_mala = {'delta': 1000, 'epsilon_1': 1e-7, 'A_1': 1e4, 'epsilon_2': 1e-6, 'tau_bar': .574,
+                           'mu_0': np.zeros(2), 'gamma_0': np.eye(2), 'sigma_0': 1, 'threshold_start_estimate': 1000,
+                           'threshold_use_estimate': 5000, 'robbins_monroe': 10, }
+    params_mala = _update_dict(params_mala, default_params_mala)
 
-    drift = truncated_drift(delta=delta, grad_log_pi=target_grad_log_pdf)
+    default_params_rw = {'gamma_0': np.eye(2), 'sigma_0': 1, 'epsilon_2': 0}
+    params_rw = _update_dict(params_rw, default_params_rw)
 
-    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
-                                epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
-                                mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_0)
+    drift = truncated_drift(delta=params_mala['delta'], grad_log_pi=target_grad_log_pdf)
 
-    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=gamma_0)
+    params_mala.pop('delta')
+    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, **params_mala)
+
+    rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, **params_rw)
 
     for i in range(N):
         t_mala_model.sample()
         rw_model.sample()
 
-    plt.figure(figsize=(8, 8))
-    plt.subplot(2, 1, 1)
-    t_mala_model.plot_acceptance_rates()
-    plt.legend()
-    plt.subplot(2, 1, 2)
-    rw_model.plot_acceptance_rates()
+    models = {'T-MALA': t_mala_model, 'SRW': rw_model}
 
-    plt.figure(figsize=(8, 4))
-    t_mala_model.plot_autocorr(dim=1, color='r', alpha=0.5, label='T-MALA')
-    rw_model.plot_autocorr(dim=1, color='b', alpha=0.5, label='SRW')
-    plt.legend()
-    plt.show()
+    if return_log_target:
+        return models, log_target_pdf
+    return models
 
 
 def compare_acceptance_rates(models):
@@ -215,8 +237,7 @@ def example_gaussian(mu, Sigma, N):
 
     initial_state = np.zeros(dim)
 
-    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([mu]),
-                                                                          sigmas=np.array([Sigma]))
+    target_pdf, log_target_pdf, target_grad_log_pdf = product_of_gaussian(mus=np.array([mu]), sigmas=np.array([Sigma]))
 
     # Parameter of the model
     delta = 1000
@@ -238,15 +259,14 @@ def example_gaussian(mu, Sigma, N):
                       gamma_0=gamma_0, sigma_0=sigma_MALA)
 
     t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
-                                epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
-                                mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_MALA)
+                                epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar, mu_0=mu_0,
+                                gamma_0=gamma_0, sigma_0=sigma_MALA)
 
     rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=gamma_0, sigma_0=sigma_rw)
 
-    t_rw_model = AdaptiveSymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf,
-                                     epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar,
-                                     mu_0=mu_0, gamma_0=gamma_0, sigma_0=sigma_rw
-                                     )
+    t_rw_model = AdaptiveSymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, epsilon_1=epsilon_1,
+                                     epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar, mu_0=mu_0, gamma_0=gamma_0,
+                                     sigma_0=sigma_rw)
 
     opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma,
                                sigma_0=sigma_opt_rw)
@@ -254,12 +274,8 @@ def example_gaussian(mu, Sigma, N):
     opt_mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
                           gamma_0=Sigma, sigma_0=sigma_opt_MALA)
 
-    models = {'MALA': mala_model,
-              'T-MALA': t_mala_model,
-              'OPT-MALA': opt_mala_model,
-              'SRW': rw_model,
-              'T-SRW': t_rw_model,
-              'OPT-SRW': opt_rw_model}
+    models = {'MALA': mala_model, 'T-MALA': t_mala_model, 'OPT-MALA': opt_mala_model, 'SRW': rw_model,
+              'T-SRW': t_rw_model, 'OPT-SRW': opt_rw_model}
 
     for _, model in models.items():
         for _ in range(N):
@@ -286,10 +302,17 @@ def example_vanilla_gauss(dim, N):
 
 
 if __name__ == '__main__':
-    # example_prod_gauss(200)
-    models = example_20D(50000)
+    # models = example_20D(120)
     # models = example_vanilla_gauss(dim=2, N=5000)
     # s = np.random.random(size=(6, 6))
     # models = example_gaussian(np.zeros(6), s @ s.T, N=20000)
-    compare_models(models, dim=5)
-    plt.show()
+    # compare_models(models, dim=5)
+    # plt.show()
+
+    models, log_target_pdf = example_prod_gauss(200, return_log_target=True,
+                                                params_mala={'threshold_start_estimate': 0,
+                                                             'threshold_use_estimate': 3,
+                                                             'robbins_monroe': 1, })
+    result = grid_evaluation(log_target_pdf, 100, (-3, 3), (-3, 3))
+
+    animation_model_states(models, result, (-3, 3, -3, 3))

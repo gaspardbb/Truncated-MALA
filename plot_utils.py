@@ -33,7 +33,7 @@ def grid_evaluation(function: Callable[[np.ndarray], float], n_samples: int, x_r
     xx, yy = np.meshgrid(tx, ty)
     xy = np.stack([xx, yy], axis=-1).reshape(n_samples ** 2, 2)
     result = np.zeros(n_samples ** 2)
-    # Should be broadcasted...
+    # Should be broadcast...
     for i in range(n_samples ** 2):
         result[i] = function(xy[i])
     return result.reshape((n_samples, n_samples))
@@ -136,8 +136,8 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
     # Just turning the history of each state in an array
     models_states = {k: np.array(models[k].history['state']) for k in models}
     lines = {}
-    for i, k in enumerate(models):
-        lines[k], = ax.plot([], [], "*%s" % colors[i])
+    for c, k in zip(colors, models):
+        lines[k], = ax.plot([], [], "*%s" % c)
 
     legend_elements = [Line2D([0], [0], color=c, markerfacecolor=c, marker='*', label=k)
                        for c, k in zip(colors, models)]

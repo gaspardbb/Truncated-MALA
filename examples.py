@@ -1,5 +1,6 @@
 import numpy as np
-from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW, MALA, \
+
+from hasting_metropolis import AdaptiveMALA, truncated_drift, SymmetricRW,  MALA, \
     AdaptiveSymmetricRW
 import matplotlib.pyplot as plt
 
@@ -187,11 +188,11 @@ def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000, axe
     return result
 
 
-def compare_models(models, dim=0):
+def compare_models(models, dim=0, n_iter=50):
     compare_acceptance_rates(models)
     compare_autocorr(models, dim=dim)
     compare_mean_square_jump(models, stationarity=1000)
-    compare_efficiency(models, dim=dim, n_iter=50, n_stationarity=10000)
+    compare_efficiency(models, dim=dim, n_iter=n_iter, n_stationarity=10000)
     plt.show()
 
 
@@ -213,18 +214,18 @@ def example_vanilla_gauss(dim, N):
 
 
 if __name__ == '__main__':
-    # models = example_20D(120)
-    # models = example_vanilla_gauss(dim=2, N=5000)
+    # models = example_20D(100000)
+    # models = example_vanilla_gauss(dim=2, N=50000)
     # s = np.random.random(size=(6, 6))
     # models = example_gaussian(np.zeros(6), s @ s.T, N=20000)
-    # compare_models(models, dim=5)
+    # compare_models(models, dim=0, n_iter=50)
     # plt.show()
 
     # Product of Gaussian
     # pdf = random_product_of_gaussian()
     # x_range = y_range = (-3, 3)
 
-    # Banananana
+    # Banana
     pdf = banana(0.05, dim=2)
     x_range = (-15, 15)
     y_range = (-10, 10)
@@ -241,3 +242,5 @@ if __name__ == '__main__':
     ani = animation_model_states(models, result, x_range + y_range,
                                  n_start=0,
                                  n_end=200)
+
+    animation.save('basic_animation.html', fps=30, extra_args=['-vcodec', 'libx264'])

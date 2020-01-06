@@ -144,24 +144,25 @@ def example_gaussian(mu, Sigma, N):
     mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
                       gamma_0=gamma_0, sigma_0=sigma_MALA)
 
-    t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
-                                epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar, mu_0=mu_0,
-                                gamma_0=gamma_0, sigma_0=sigma_MALA)
+    adapt_t_mala_model = AdaptiveMALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift,
+                                      epsilon_1=epsilon_1, epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar, mu_0=mu_0,
+                                      gamma_0=gamma_0, sigma_0=sigma_MALA)
 
     rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=gamma_0, sigma_0=sigma_rw)
 
-    t_rw_model = AdaptiveSymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, epsilon_1=epsilon_1,
-                                     epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar, mu_0=mu_0, gamma_0=gamma_0,
-                                     sigma_0=sigma_rw)
+    adapt_rw_model = AdaptiveSymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, epsilon_1=epsilon_1,
+                                         epsilon_2=epsilon_2, A_1=A_1, tau_bar=tau_bar, mu_0=mu_0, gamma_0=gamma_0,
+                                         sigma_0=sigma_rw)
 
     opt_rw_model = SymmetricRW(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, gamma_0=Sigma,
                                sigma_0=sigma_opt_rw)
 
-    opt_mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
-                          gamma_0=Sigma, sigma_0=sigma_opt_MALA)
+    opt_t_mala_model = MALA(state=initial_state, pi=target_pdf, log_pi=log_target_pdf, drift=drift, tau_bar=tau_bar,
+                            gamma_0=Sigma, sigma_0=sigma_opt_MALA)
 
-    models = {'MALA': mala_model, 'T-MALA': t_mala_model, 'OPT-MALA': opt_mala_model, 'SRW': rw_model,
-              'T-SRW': t_rw_model, 'OPT-SRW': opt_rw_model}
+    models = {'SRW': rw_model,
+              'Adapt-SRW': adapt_rw_model, 'OPT-SRW': opt_rw_model, 'T-MALA': mala_model,
+              'Adapt-T-MALA': adapt_t_mala_model, 'OPT-T-MALA': opt_t_mala_model}
 
     for _, model in models.items():
         for _ in range(N):

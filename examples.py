@@ -21,10 +21,10 @@ def _update_dict(to_update_dict: dict, default_dict: dict):
 def test_models(target_pdf, log_target_pdf, target_grad_log_pdf,
                 N, initial_state=np.zeros(2),
                 return_target=False,
-                params_t_mala: dict = {},
+                params_adapt_t_mala: dict = {},
                 params_rw: dict = {},
-                params_t_rw: dict = {},
-                params_mala: dict = {}):
+                params_adapt_rw: dict = {},
+                params_t_mala: dict = {}):
     """
     2D example of the truncated drift.
 
@@ -34,8 +34,8 @@ def test_models(target_pdf, log_target_pdf, target_grad_log_pdf,
         # of samples
     return_target: bool
         Whether to return the target function
-    params_t_mala: dict
-        Parameters to override in the default parameters dictionary for MALA. See default_params_t_mala.
+    params_adapt_t_mala: dict
+        Parameters to override in the default parameters dictionary for MALA. See default_params_adapt_t_mala.
     params_rw
         Same for RW. See default_params_default_params_rw.
 
@@ -47,40 +47,40 @@ def test_models(target_pdf, log_target_pdf, target_grad_log_pdf,
     common_params = {"state": initial_state, "pi": target_pdf, "log_pi": log_target_pdf}
 
     # Default parameters of the models
-    # T-MALA
-    default_params_t_mala = {'delta': 1000, 'epsilon_1': 1e-7, 'A_1': 1e4, 'epsilon_2': 1e-6, 'tau_bar': .574,
+    # adaptive T-MALA
+    default_params_adapt_t_mala = {'delta': 1000, 'epsilon_1': 1e-7, 'A_1': 1e4, 'epsilon_2': 1e-6, 'tau_bar': .574,
                              'mu_0': np.zeros(2), 'gamma_0': np.eye(2), 'sigma_0': 1, 'threshold_start_estimate': 1000,
                              'threshold_use_estimate': 5000, 'robbins_monroe': 10, }
-    params_t_mala = _update_dict(params_t_mala, default_params_t_mala)
-    drift = truncated_drift(delta=params_t_mala['delta'], grad_log_pi=target_grad_log_pdf)
+    params_adapt_t_mala = _update_dict(params_adapt_t_mala, default_params_adapt_t_mala)
+    drift = truncated_drift(delta=params_adapt_t_mala['delta'], grad_log_pi=target_grad_log_pdf)
 
-    # MALA
-    default_params_mala = {'tau_bar': .574, 'gamma_0': np.eye(2), 'sigma_0': 1}
-    params_mala = _update_dict(params_mala, default_params_mala)
+    # T-MALA
+    default_params_t_mala = {'tau_bar': .574, 'gamma_0': np.eye(2), 'sigma_0': 1}
+    params_t_mala = _update_dict(params_t_mala, default_params_t_mala)
 
     # RW
     default_params_rw = {'gamma_0': np.eye(2), 'sigma_0': 1, 'epsilon_2': 0}
     params_rw = _update_dict(params_rw, default_params_rw)
 
-    # T-RW
-    default_params_t_rw = default_params_t_mala
-    default_params_t_rw.pop('delta')
-    default_params_t_rw['sigma_0'] = 1e-1
-    params_t_rw = _update_dict(params_t_rw, default_params_t_rw)
+    # Adaptive RW
+    default_params_adapt_rw = default_params_adapt_t_mala.copy()
+    default_params_adapt_rw.pop('delta')
+    default_params_adapt_rw['sigma_0'] = 1e-1
+    params_adapt_rw = _update_dict(params_adapt_rw, default_params_adapt_rw)
 
-    params_t_mala.pop('delta')
-    t_mala_model = AdaptiveMALA(**common_params, drift=drift, **params_t_mala)
-    mala_model = MALA(**common_params, drift=drift, **params_mala)
+    params_adapt_t_mala.pop('delta')
+    adapt_t_mala_model = AdaptiveMALA(**common_params, drift=drift, **params_adapt_t_mala)
+    t_mala_model = MALA(**common_params, drift=drift, **params_t_mala)
     rw_model = SymmetricRW(**common_params, **params_rw)
-    t_rw_model = AdaptiveSymmetricRW(**common_params, **params_t_rw)
+    adapt_rw_model = AdaptiveSymmetricRW(**common_params, **params_adapt_rw)
 
     for i in range(N):
+        adapt_t_mala_model.sample()
         t_mala_model.sample()
-        mala_model.sample()
         rw_model.sample()
-        t_rw_model.sample()
+        adapt_rw_model.sample()
 
-    models = {'T-MALA': t_mala_model, 'SRW': rw_model, 'T-SRW': t_rw_model, 'MALA': mala_model}
+    models = {'SRW': rw_model, 'Adapt-SRW': adapt_rw_model, 'T-MALA': t_mala_model, 'Adapt-T-MALA': adapt_t_mala_model}
 
     if return_target:
         return models, (log_target_pdf, target_pdf)
@@ -160,7 +160,7 @@ def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000, axe
     for name, model in models.items():
         mu_dim = []
         for _ in range(n_iter):
-            model.initialize()
+            model.reinitialize()
             for _ in range(n_stationarity):
                 model.sample()
             mu_dim.append(model.state[dim])
@@ -184,7 +184,7 @@ def compare_efficiency(models: dict, dim=0, n_iter=50, n_stationarity=10000, axe
     ax = axes[1]
     ax.bar(*zip(*result['efficiencies'].items()))
     ax.set_xlabel("Model")
-    ax.set_ylabel("Comparison of efficiencies")
+    ax.set_ylabel("Efficiency")
     return result
 
 
@@ -214,33 +214,33 @@ def example_vanilla_gauss(dim, N):
 
 
 if __name__ == '__main__':
-    # models = example_20D(100000)
+    models = example_20D(50000)
     # models = example_vanilla_gauss(dim=2, N=50000)
     # s = np.random.random(size=(6, 6))
     # models = example_gaussian(np.zeros(6), s @ s.T, N=20000)
-    # compare_models(models, dim=0, n_iter=50)
-    # plt.show()
+    compare_models(models, dim=0, n_iter=50)
+    plt.show()
 
     # Product of Gaussian
     # pdf = random_product_of_gaussian()
     # x_range = y_range = (-3, 3)
 
     # Banana
-    pdf = banana(0.05, dim=2)
-    x_range = (-15, 15)
-    y_range = (-10, 10)
-
-    models, (log_target_pdf, target_pdf) = test_models(*pdf, N=250, return_target=True,
-                                                       params_t_mala={'threshold_start_estimate': 0,
-                                                                      'threshold_use_estimate': 20, 'robbins_monroe': 5,
-                                                                      'sigma_0': 100})
-    # Gaussian : use log pdf
-    # result = grid_evaluation(log_target_pdf, 200, x_range, y_range)
-    # Banana : use pdf
-    result = grid_evaluation(target_pdf, 200, x_range, y_range)
-
-    animation = animation_model_states(models, result, x_range + y_range,
-                                       n_start=0,
-                                       n_end=200)
-
-    animation.save('basic_animation.html', fps=30, extra_args=['-vcodec', 'libx264'])
+    # pdf = banana(0.05, dim=2)
+    # x_range = (-15, 15)
+    # y_range = (-10, 10)
+    #
+    # models, (log_target_pdf, target_pdf) = test_models(*pdf, N=1000, return_target=True,
+    #                                                    params_t_mala={'threshold_start_estimate': 0,
+    #                                                                   'threshold_use_estimate': 20, 'robbins_monroe': 5,
+    #                                                                   'sigma_0': 10})
+    # # Gaussian : use log pdf
+    # # result = grid_evaluation(log_target_pdf, 200, x_range, y_range)
+    # # Banana : use pdf
+    # result = grid_evaluation(target_pdf, 200, x_range, y_range)
+    #
+    # animation = animation_model_states(models, result, x_range + y_range,
+    #                                    n_start=0,
+    #                                    n_end=300)
+    #
+    # animation.save('basic_animation.html', fps=1, extra_args=['-vcodec', 'libx264'])

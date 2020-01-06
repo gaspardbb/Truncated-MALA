@@ -131,7 +131,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
     if ax is None:
         ax = plt.gca()
 
-    ax.imshow(function_array, extent=function_coords, cmap='coolwarm')
+    ax.imshow(function_array, extent=function_coords, cmap='coolwarm', origin='lower')
 
     # Just turning the history of each state in an array
     models_states = {k: np.array(models[k].history['state']) for k in models}
@@ -139,7 +139,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
     for i, k in enumerate(models):
         lines[k], = ax.plot([], [], "*%s" % colors[i])
 
-    legend_elements = [Line2D([0], [0], lw=0, markerfacecolor=c, marker='*', label=k)
+    legend_elements = [Line2D([0], [0], color=c, markerfacecolor=c, marker='*', label=k)
                        for c, k in zip(colors, models)]
     ax.legend(handles=legend_elements)
 

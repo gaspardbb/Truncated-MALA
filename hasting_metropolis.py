@@ -45,11 +45,11 @@ def log_normal_pdf_unn(x, mean, variance, inv_variance=None):
 
     Returns
     -------
-    Float: the result.
+    float: the result.
     """
     if inv_variance is None:
         inv_variance = np.linalg.inv(variance)
-    return -1 / 2 * (x - mean).T[np.newaxis, :] @ inv_variance @ (x - mean)[:, np.newaxis]
+    return -1 / 2 * (x - mean) @ (inv_variance @ (x - mean))
 
 
 class HastingMetropolis:
@@ -214,7 +214,7 @@ class HastingMetropolis:
         result = np.sqrt(result)
         return result
 
-    def initialize(self):
+    def reinitialize(self):
         self.state = self.history['state'][0].copy()
         self.acceptance_rate = 0
         self.steps = 0
@@ -260,7 +260,7 @@ def projection_operators(epsilon_1, A_1):
     proj_mu: Projection on centered ball of radius A_1
     """
 
-    def proj_sigma(x: np.ndarray) -> np.ndarray:
+    def proj_sigma(x: float) -> float:
         if x < epsilon_1:
             return epsilon_1
         elif x > A_1:
@@ -369,8 +369,8 @@ class MALA(HastingMetropolis):
         plt.plot([offset - 1, self.steps + 1], [self.tau_bar, self.tau_bar], c='r', linestyle='--',
                  label=r'$\hat{\tau}$')
 
-    def initialize(self):
-        super(MALA, self).initialize()
+    def reinitialize(self):
+        super(MALA, self).reinitialize()
         self.gamma = self.params_history['gamma'][0].copy()
         self.sigma = self.params_history['sigma'][0]
         self.params_history = {'gamma': [self.gamma.copy()],
@@ -430,9 +430,9 @@ class AdaptiveMALA(MALA):
         #  class, and only keep the scale factor sigma.
         _update_params_adaptive(self, alpha)
 
-    def initialize(self):
+    def reinitialize(self):
         self.mu = self.params_history['mu'][0].copy()
-        super(AdaptiveMALA, self).initialize()
+        super(AdaptiveMALA, self).reinitialize()
         self.params_history['mu'] = [self.mu.copy()]
 
 
@@ -504,9 +504,9 @@ class AdaptiveSymmetricRW(SymmetricRW):
     def update_params(self, alpha):
         _update_params_adaptive(self, alpha)
 
-    def initialize(self):
+    def reinitialize(self):
         self.mu = self.params_history['mu'][0].copy()
-        super(AdaptiveSymmetricRW, self).initialize()
+        super(AdaptiveSymmetricRW, self).reinitialize()
         self.params_history['mu'] = [self.mu.copy()]
 
 

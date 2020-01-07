@@ -426,6 +426,8 @@ class AdaptiveMALA(MALA):
         self.params_history['mu'] = [mu_0.copy()]
 
     def update_params(self, alpha):
+        # TODO: ERROR: Adaptive SRW must not update its gamma_0 matrix. Must get rid of the gamma parameter for this
+        #  class, and only keep the scale factor sigma.
         _update_params_adaptive(self, alpha)
 
     def initialize(self):

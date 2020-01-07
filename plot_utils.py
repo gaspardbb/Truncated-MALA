@@ -89,7 +89,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                            fig: plt.Figure = None,
                            ax: plt.Axes = None,
                            interval: float = 200,
-                           colors=('g', 'b', 'k', 'c', 'r'),
+                           colors=('b', 'k', 'c', 'y', 'g', 'r'),
                            plot_covariance=True,
                            **kwargs):
     """
@@ -155,7 +155,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
         for i, k in enumerate(models):
             model = models[k]
             model_state = models_states[k]
-            x_data, y_data = model_state[:iteration, 0], model_state[:iteration, 1]
+            x_data, y_data = model_state[n_start:n_start+iteration, 0], model_state[n_start:n_start+iteration, 1]
             lines[k].set_data(x_data, y_data)
 
             if plot_covariance and hasattr(model, 'gamma'):
@@ -165,12 +165,12 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                     cov = model.params_history['gamma'][-1] * model.params_history['sigma'][-1] ** 2
                 else:
                     cov = model.params_history['gamma'][iteration] * model.params_history['sigma'][iteration] ** 2
-                new_patch = _plot_ellipse_covariance(model_state[iteration],
+                new_patch = _plot_ellipse_covariance(model_state[n_start+iteration],
                                                      cov=cov,
                                                      ax=ax,
                                                      edgecolor=colors[i], lw=1.2)
                 covariance_patches += new_patch
-        return list(lines.values()) + covariance_patches + [ax.set_title("Step {}".format(iteration))]
+        return list(lines.values()) + covariance_patches  # + [ax.set_title("Step {}".format(iteration))]
 
     animation = FuncAnimation(fig, update_frame, frames=n_end - n_start, blit=True, interval=interval, **kwargs)
 

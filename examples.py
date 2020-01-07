@@ -80,7 +80,8 @@ def test_models(target_pdf, log_target_pdf, target_grad_log_pdf,
         rw_model.sample()
         t_rw_model.sample()
 
-    models = {'T-MALA': t_mala_model, 'SRW': rw_model, 'T-SRW': t_rw_model, 'MALA': mala_model}
+    # models = {'T-MALA': t_mala_model, 'SRW': rw_model, 'T-SRW': t_rw_model, 'MALA': mala_model}
+    models = {'Adaptive-MALA': t_mala_model, 'SRW': rw_model, 'Adaptive-SRW': t_rw_model, 'MALA': mala_model}
 
     if return_target:
         return models, (log_target_pdf, target_pdf)
@@ -222,7 +223,7 @@ if __name__ == '__main__':
     # plt.show()
 
     # Product of Gaussian
-    # pdf = random_product_of_gaussian()
+    # pdf = random_product_of_gaussian(1)
     # x_range = y_range = (-3, 3)
 
     # Banana
@@ -230,17 +231,17 @@ if __name__ == '__main__':
     x_range = (-15, 15)
     y_range = (-10, 10)
 
-    models, (log_target_pdf, target_pdf) = test_models(*pdf, N=250, return_target=True,
-                                                       params_t_mala={'threshold_start_estimate': 0,
-                                                                      'threshold_use_estimate': 20, 'robbins_monroe': 5,
-                                                                      'sigma_0': 100})
-    # Gaussian : use log pdf
-    # result = grid_evaluation(log_target_pdf, 200, x_range, y_range)
-    # Banana : use pdf
+    models, (log_target_pdf, target_pdf) = test_models(*pdf, N=10000, return_target=True,
+                                                       params_t_mala={'threshold_start_estimate': 5,
+                                                                      'threshold_use_estimate': 10,
+                                                                      'robbins_monroe': 5,
+                                                                      'sigma_0': 100},
+                                                       initial_state=np.array([0, 0]))
+    # Show pdf
     result = grid_evaluation(target_pdf, 200, x_range, y_range)
 
     animation = animation_model_states(models, result, x_range + y_range,
-                                       n_start=0,
-                                       n_end=200)
+                                       n_start=9000,
+                                       n_end=9100)
 
-    animation.save('basic_animation.html', fps=30, extra_args=['-vcodec', 'libx264'])
+    # ani.save('basic_animation.html', fps=30, extra_args=['-vcodec', 'libx264'])

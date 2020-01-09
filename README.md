@@ -1,3 +1,3 @@
 # Truncated-MALA
 Implementation of the Truncated-MALA HM sampler.
-![](model_dynamics.gif)
+![](animations/model_dynamics.gif)

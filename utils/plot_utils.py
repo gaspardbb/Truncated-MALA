@@ -155,7 +155,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
         for i, k in enumerate(models):
             model = models[k]
             model_state = models_states[k]
-            x_data, y_data = model_state[n_start:n_start+iteration, 0], model_state[n_start:n_start+iteration, 1]
+            x_data, y_data = model_state[n_start:n_start + iteration, 0], model_state[n_start:n_start + iteration, 1]
             lines[k].set_data(x_data, y_data)
 
             if plot_covariance and hasattr(model, 'gamma'):
@@ -165,7 +165,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                     cov = model.params_history['gamma'][-1] * model.params_history['sigma'][-1] ** 2
                 else:
                     cov = model.params_history['gamma'][iteration] * model.params_history['sigma'][iteration] ** 2
-                new_patch = _plot_ellipse_covariance(model_state[n_start+iteration],
+                new_patch = _plot_ellipse_covariance(model_state[n_start + iteration],
                                                      cov=cov,
                                                      ax=ax,
                                                      edgecolor=colors[i], lw=1.2)
@@ -175,3 +175,5 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
     animation = FuncAnimation(fig, update_frame, frames=n_end - n_start, blit=True, interval=interval, **kwargs)
 
     return animation
+
+

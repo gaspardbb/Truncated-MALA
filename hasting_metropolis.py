@@ -468,17 +468,17 @@ class AdaptiveSymmetricRW(SymmetricRW):
                  threshold_use_estimate=5000
                  ):
         """
-                An Adaptive symmetric random walk HM sampler.
+        An Adaptive symmetric random walk HM sampler.
 
-                Parameters
-                ----------
-                state: initial state.
-                pi: distribution we want to approximate.
-                log_pi: log of the distribution we want to approximate
-                gamma_0: scale parameter for the proposal distribution.
-                threshold_start_estimate: int corresponding to the number of steps after which we start updating the
-                covariance matrix
-                """
+        Parameters
+        ----------
+        state: initial state.
+        pi: distribution we want to approximate.
+        log_pi: log of the distribution we want to approximate
+        sigma_0: scale parameter for the proposal distribution.
+        threshold_start_estimate: int corresponding to the number of steps after which we start updating the
+        covariance matrix
+        """
         super(AdaptiveSymmetricRW, self).__init__(state, pi, log_pi,
                                                   gamma_0=gamma_0,
                                                   sigma_0=sigma_0,

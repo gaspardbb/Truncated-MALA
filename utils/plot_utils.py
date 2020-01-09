@@ -127,7 +127,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
     models = _check_models_dims(models, dims=2, n_start=n_start, n_end=n_end, colors=colors,
                                 function_coords=function_coords)
     if fig is None:
-        fig = plt.gcf()
+        fig = plt.figure(figsize=(7, 7))
     if ax is None:
         ax = plt.gca()
 
@@ -141,8 +141,11 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
 
     legend_elements = [Line2D([0], [0], color=c, markerfacecolor=c, marker='*', label=k)
                        for c, k in zip(colors, models)]
-    ax.legend(handles=legend_elements, loc='upper right')
 
+    # put legend outside the plot
+    chartBox = ax.get_position()
+    ax.set_position([chartBox.x0, chartBox.y0, chartBox.width * 0.8, chartBox.height * 0.8])
+    ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(1.2, 0.8), shadow=True, ncol=1)
     n_covariance_models = len([model for model in models.values() if hasattr(model, 'gamma')])
 
     def update_frame(iteration):
@@ -170,10 +173,8 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
                                                      ax=ax,
                                                      edgecolor=colors[i], lw=1.2)
                 covariance_patches += new_patch
-        return list(lines.values()) + covariance_patches  # + [ax.set_title("Step {}".format(iteration))]
+        return list(lines.values()) + covariance_patches + [ax.set_title("Step {}".format(n_start + iteration))]
 
     animation = FuncAnimation(fig, update_frame, frames=n_end - n_start, blit=True, interval=interval, **kwargs)
 
     return animation
-
-

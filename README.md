@@ -1,5 +1,5 @@
 # Adaptive Metropolis Adjusted Langevin Algorithm with a truncated drift
-Implementation of the Truncated-MALA HM sampler<sup>1</sup> (T-MALA) for the course of [Computational Statistics](https://sites.google.com/site/stephanieallassonniere/enseignements/methodes-mcmc-et-applications) gyven by Stéphanie Allassonière for [Master MVA](https://www.master-mva.com).
+Implementation of the Truncated-MALA HM sampler<sup>1</sup> (T-MALA) for the course of [Computational Statistics](https://sites.google.com/site/stephanieallassonniere/enseignements/methodes-mcmc-et-applications) given by Stéphanie Allassonière for [Master MVA](https://www.master-mva.com).
 
 ### Presentation
 This sampler belongs to the family of [Hastings-Metropolis](https://en.wikipedia.org/wiki/Metropolis–Hastings_algorithm) algorithms, and more precisely to the class of [Metropolis-adjusted Langevin algorithm](https://en.wikipedia.org/wiki/Metropolis-adjusted_Langevin_algorithm) (MALA) samplers which are [Markov chain Monte Carlo](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) (MCMC) methods for obtaining a sequence of random samples from a probability distribution from which direct sampling is difficult.

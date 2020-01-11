@@ -17,7 +17,7 @@ def grid_evaluation(function: Callable[[np.ndarray], float], n_samples: int, x_r
     Parameters
     ----------
     function
-        Function to evaluate; should take as input an array of dim. 2.
+        Function to evaluate; should take as input an array of dimension 2.
     n_samples: int
         # of samples on both dimensions.
     x_range: tuple
@@ -33,7 +33,6 @@ def grid_evaluation(function: Callable[[np.ndarray], float], n_samples: int, x_r
     xx, yy = np.meshgrid(tx, ty)
     xy = np.stack([xx, yy], axis=-1).reshape(n_samples ** 2, 2)
     result = np.zeros(n_samples ** 2)
-    # Should be broadcast...
     for i in range(n_samples ** 2):
         result[i] = function(xy[i])
     return result.reshape((n_samples, n_samples))

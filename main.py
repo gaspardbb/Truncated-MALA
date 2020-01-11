@@ -98,6 +98,6 @@ def example_gaussian_dynamics(N=100, n_gaussians=5, save=False, n_start=0, n_end
 
 
 if __name__ == '__main__':
-    # example_20d_gauss(5000, 3)
+    example_20d_gauss(5000, 50)
     example_gaussian_dynamics(500, save=True, n_start=0, n_end=500, fps=40)
     example_banana_dynamics(500, n_start=0, n_end=500, save=True, fps=40)

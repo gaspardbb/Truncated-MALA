@@ -1,13 +1,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
-
-plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
-
 import numpy as np
-
 from hasting_metropolis import AdaptiveMALA, MALA, AdaptiveSymmetricRW, SymmetricRW, truncated_drift
 from utils.plot_utils import grid_evaluation, animation_model_states
+
+plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
 
 
 def _update_dict(to_update_dict: dict, *default_dicts: dict):

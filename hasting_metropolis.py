@@ -522,7 +522,7 @@ class AdaptiveSymmetricRW(SymmetricRW):
         self.params_history['mu'] = [self.mu.copy()]
 
 
-def _update_params_adaptive(model: Union[AdaptiveMALA, AdaptiveSymmetricRW], alpha: float):
+def _update_params_adaptive(model: Union[MALA, AdaptiveMALA, AdaptiveSymmetricRW], alpha: float):
     """
     Function to avoid duplicate between AdaptiveMALA and AdaptiveSymmetricRW.
 

@@ -64,6 +64,9 @@ class HastingMetropolis:
         self.steps = 0
         self.history = {'state': [state], 'acceptance rate': []}
 
+        # list of parameters to adapt
+        self.params_to_adapt = set()
+
     def sample(self):
         """
         Draw one sample from the chain.
@@ -315,10 +318,13 @@ class MALA(HastingMetropolis):
                  tau_bar: float,
                  gamma_0: np.ndarray,
                  sigma_0: float,
+                 epsilon_1: float = 1e-7,
+                 A_1: float = 1e7,
                  epsilon_2: float = 0,
+                 robbins_monroe=10
                  ):
         """
-        Basic MALA sampler.
+        Basic MALA sampler with adaptive scale.
 
         Parameters
         ----------
@@ -336,10 +342,16 @@ class MALA(HastingMetropolis):
         self.tau_bar = tau_bar
         self.gamma = gamma_0
         self.sigma = sigma_0
+        self.A_1 = A_1
+        self.epsilon_1 = epsilon_1
+        self.proj_sigma, _, _ = projection_operators(epsilon_1, A_1)
         self.epsilon_2 = epsilon_2
+        self.c_0 = robbins_monroe
 
         self.params_history = {'gamma': [gamma_0.copy()],
                                'sigma': [sigma_0]}
+
+        self.params_to_adapt.add('sigma')
 
     def proposal_sampler(self) -> np.ndarray:
         big_lambda = self.gamma + self.epsilon_2 * np.eye(self.dims)
@@ -375,6 +387,9 @@ class MALA(HastingMetropolis):
         self.sigma = self.params_history['sigma'][0]
         self.params_history = {'gamma': [self.gamma.copy()],
                                'sigma': [self.sigma]}
+
+    def update_params(self, alpha):
+        _update_params_adaptive(self, alpha)
 
 
 class AdaptiveMALA(MALA):
@@ -412,21 +427,18 @@ class AdaptiveMALA(MALA):
         [1] An adaptive version for the Metropolis adjusted Langevin algorithm with a truncated drift, Yves F. Atchadé
 
         """
-        super(AdaptiveMALA, self).__init__(state, pi, log_pi, drift, tau_bar, gamma_0, sigma_0, epsilon_2)
+        super(AdaptiveMALA, self).__init__(state, pi, log_pi, drift, tau_bar, gamma_0, sigma_0, epsilon_2,
+                                           robbins_monroe)
         _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu_0, gamma_0, threshold_start_estimate,
                       threshold_use_estimate)
         self.epsilon_1 = epsilon_1
 
-        self.A_1 = A_1
         self.mu = mu_0
-        self.c_0 = robbins_monroe
         self.proj_sigma, self.proj_gamma, self.proj_mu = projection_operators(epsilon_1, A_1)
         self.threshold_use_estimate = threshold_use_estimate
         self.threshold_start_estimate = threshold_start_estimate
         self.params_history['mu'] = [mu_0.copy()]
-
-    def update_params(self, alpha):
-        _update_params_adaptive(self, alpha)
+        self.params_to_adapt.update(['mu', 'gamma'])
 
     def reinitialize(self):
         self.mu = self.params_history['mu'][0].copy()
@@ -435,7 +447,8 @@ class AdaptiveMALA(MALA):
 
 
 class SymmetricRW(MALA):
-    def __init__(self, state, pi, log_pi, gamma_0, sigma_0=1, epsilon_2=0):
+    def __init__(self, state, pi, log_pi, gamma_0, sigma_0=1, epsilon_1=1e-7,
+                 A_1=1e7, epsilon_2=0, robbins_monroe=10, tau_bar=0.234):
         """
         A symmetric random walk HM sampler.
 
@@ -448,10 +461,13 @@ class SymmetricRW(MALA):
         """
         super(SymmetricRW, self).__init__(state, pi, log_pi,
                                           drift=lambda x: np.zeros(x.shape),
-                                          tau_bar=0.234,
+                                          tau_bar=tau_bar,
                                           gamma_0=gamma_0,
                                           sigma_0=sigma_0,
-                                          epsilon_2=epsilon_2)
+                                          epsilon_1=epsilon_1,
+                                          epsilon_2=epsilon_2,
+                                          A_1=A_1,
+                                          robbins_monroe=robbins_monroe)
 
 
 class AdaptiveSymmetricRW(SymmetricRW):
@@ -465,7 +481,7 @@ class AdaptiveSymmetricRW(SymmetricRW):
                  sigma_0: float,
                  robbins_monroe=10,
                  threshold_start_estimate=1000,
-                 threshold_use_estimate=5000
+                 threshold_use_estimate=5000,
                  ):
         """
         An Adaptive symmetric random walk HM sampler.
@@ -482,16 +498,15 @@ class AdaptiveSymmetricRW(SymmetricRW):
         super(AdaptiveSymmetricRW, self).__init__(state, pi, log_pi,
                                                   gamma_0=gamma_0,
                                                   sigma_0=sigma_0,
-                                                  epsilon_2=epsilon_2
+                                                  A_1=A_1,
+                                                  epsilon_1=epsilon_1,
+                                                  epsilon_2=epsilon_2,
+                                                  robbins_monroe=robbins_monroe
                                                   )
         _check_values(epsilon_1, A_1, epsilon_2, tau_bar, mu_0, gamma_0, threshold_start_estimate,
                       threshold_use_estimate)
 
-        self.epsilon_1 = epsilon_1
-
-        self.A_1 = A_1
         self.mu = mu_0
-        self.c_0 = robbins_monroe
         self.proj_sigma, self.proj_gamma, self.proj_mu = projection_operators(epsilon_1, A_1)
         self.threshold_start_estimate = threshold_start_estimate
         self.threshold_use_estimate = threshold_use_estimate
@@ -499,8 +514,7 @@ class AdaptiveSymmetricRW(SymmetricRW):
                                'gamma': [gamma_0.copy()],
                                'sigma': [sigma_0]}
 
-    def update_params(self, alpha):
-        _update_params_adaptive(self, alpha)
+        self.params_to_adapt.update(['mu', 'gamma'])
 
     def reinitialize(self):
         self.mu = self.params_history['mu'][0].copy()
@@ -521,17 +535,21 @@ def _update_params_adaptive(model: Union[AdaptiveMALA, AdaptiveSymmetricRW], alp
     """
     coeff = model.c_0 / model.steps
 
-    model.mu = model.proj_mu(model.mu + coeff * (model.state - model.mu))
-    # _gamma_estimate holds the estimation of the covariance matrix.
-    # It is different from gamma: indeed, we want to estimate the covariance matrix without using it at first.
-    if model.steps > model.threshold_start_estimate:
-        coeff_gamma = model.c_0 / (model.steps - model.threshold_start_estimate + model.c_0)
-        covariance = (model.state - model.mu)[:, np.newaxis] @ (model.state - model.mu)[np.newaxis, :]
-        model._gamma_estimate = model.proj_gamma(model.gamma + coeff_gamma * (covariance - model.gamma))
-    if model.steps > model.threshold_use_estimate:
-        model.gamma = model._gamma_estimate
-    model.sigma = model.proj_sigma(model.sigma + coeff * (alpha - model.tau_bar))
+    if 'mu' in model.params_to_adapt:
+        model.mu = model.proj_mu(model.mu + coeff * (model.state - model.mu))
 
-    model.params_history['mu'].append(model.mu.copy())
-    model.params_history['gamma'].append(model.gamma.copy())
-    model.params_history['sigma'].append(model.sigma)
+        if 'gamma' in model.params_to_adapt:
+            # _gamma_estimate holds the estimation of the covariance matrix.
+            # It is different from gamma: indeed, we want to estimate the covariance matrix without using it at first.
+            if model.steps > model.threshold_start_estimate:
+                coeff_gamma = model.c_0 / (model.steps - model.threshold_start_estimate + model.c_0)
+                covariance = (model.state - model.mu)[:, np.newaxis] @ (model.state - model.mu)[np.newaxis, :]
+                model._gamma_estimate = model.proj_gamma(model.gamma + coeff_gamma * (covariance - model.gamma))
+            if model.steps > model.threshold_use_estimate:
+                model.gamma = model._gamma_estimate
+            model.params_history['gamma'].append(model.gamma.copy())
+        model.params_history['mu'].append(model.mu.copy())
+
+    if 'sigma' in model.params_to_adapt:
+        model.sigma = model.proj_sigma(model.sigma + coeff * (alpha - model.tau_bar))
+        model.params_history['sigma'].append(model.sigma)

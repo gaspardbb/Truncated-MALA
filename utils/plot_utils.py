@@ -82,7 +82,7 @@ def _plot_ellipse_covariance(mean, cov, ax: plt.Axes, confidence=.9, facecolor='
     return patches
 
 
-def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMetropolis],
+def animation_model_states(models: Union[Dict[str, MALA], MALA],
                            function_array: np.ndarray, function_coords: tuple,
                            n_start: int = 0,
                            n_end: int = 100,
@@ -146,7 +146,7 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
     chartBox = ax.get_position()
     ax.set_position([chartBox.x0, chartBox.y0, chartBox.width * 0.8, chartBox.height * 0.8])
     ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(1.2, 0.8), shadow=True, ncol=1)
-    n_covariance_models = len([model for model in models.values() if hasattr(model, 'gamma')])
+    n_covariance_models = len([model for model in models.values()])
 
     def update_frame(iteration):
         covariance_patches = []
@@ -161,13 +161,17 @@ def animation_model_states(models: Union[Dict[str, HastingMetropolis], HastingMe
             x_data, y_data = model_state[n_start:n_start + iteration, 0], model_state[n_start:n_start + iteration, 1]
             lines[k].set_data(x_data, y_data)
 
-            if plot_covariance and hasattr(model, 'gamma'):
-                # Annoying little case for samplers which do not update the gamma param
-                len_gamma = len(model.params_history['gamma'])
-                if len_gamma - 1 < iteration:
-                    cov = model.params_history['gamma'][-1] * model.params_history['sigma'][-1] ** 2
+            if plot_covariance:
+                if hasattr(model, 'gamma'):
+                    # Annoying little case for samplers which do not update the gamma param
+                    len_gamma = len(model.params_history['gamma'])
+                    if len_gamma - 1 < iteration:
+                        cov = model.params_history['gamma'][-1]
+                    else:
+                        cov = model.params_history['gamma'][iteration]
                 else:
-                    cov = model.params_history['gamma'][iteration] * model.params_history['sigma'][iteration] ** 2
+                    cov = model.gamma
+                cov = cov * model.params_history['sigma'][n_start + iteration] ** 2
                 new_patch = _plot_ellipse_covariance(model_state[n_start + iteration],
                                                      cov=cov,
                                                      ax=ax,

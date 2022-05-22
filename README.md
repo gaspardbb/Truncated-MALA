@@ -15,8 +15,7 @@ This repository notably contains implementation of the following samplers ([hast
 The following are suggested as target distributions ([sampler_utils.py](/utils/sampler_utils.py)):
 - Multivariate gaussian
 - "Banana shape" distribution, whose density is given by:
-![equation](https://latex.codecogs.com/gif.latex?\pi(x)&space;&\propto&space;\text{exp}(x_1^2&space;/&space;200&space;-&space;0.5&space;(x_2&space;&plus;&space;B&space;x_1^2&space;-&space;100&space;B)^2-&space;0.5&space;(x_3^2&space;&plus;&space;\dots&space;&plus;&space;x_d^2))
-)
+$$\pi(x) \propto \text{exp}(x_1^2 / 200 - 0.5 (x_2 + B x_1^2 - 100 B)^2 - 0.5 (x_3^2 + \dots + x_d^2))$$
 
 ### Sampling examples
 - Gaussian target distribution:
